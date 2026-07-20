@@ -1,0 +1,619 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>LingoPop — Leitner Spaced Repetition English Vocabulary</title>
+  <!-- Google Fonts: Outfit & Inter -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+  <!-- CSS Stylesheet -->
+  <link rel="stylesheet" href="index.css">
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar Navigation -->
+    <aside class="app-sidebar">
+      <div class="brand">
+        <div class="brand-logo">
+          <i data-lucide="sparkles"></i>
+        </div>
+        <div class="brand-info">
+          <h1>LingoPop</h1>
+          <span>Spaced Repetition</span>
+        </div>
+      </div>
+
+      <nav class="sidebar-nav">
+        <button class="nav-btn active" data-target="dashboard-tab">
+          <i data-lucide="layout-dashboard"></i>
+          <span>대시보드</span>
+        </button>
+        <button class="nav-btn" data-target="study-tab" id="nav-study-btn">
+          <i data-lucide="book-open"></i>
+          <span>플래시카드 학습</span>
+          <span class="badge due-count-badge" id="sidebar-due-badge" style="display: none;">0</span>
+        </button>
+        <button class="nav-btn" data-target="quiz-tab">
+          <i data-lucide="award"></i>
+          <span>단어 퀴즈</span>
+        </button>
+        <button class="nav-btn" data-target="dictation-tab" id="nav-dictation-btn">
+          <i data-lucide="pen-tool"></i>
+          <span>받아쓰기</span>
+        </button>
+        <button class="nav-btn" data-target="manage-tab">
+          <i data-lucide="folder-edit"></i>
+          <span>단어장 관리</span>
+        </button>
+      </nav>
+
+      <div class="sidebar-footer">
+        <p class="copyright">&copy; 2026 LingoPop</p>
+      </div>
+    </aside>
+
+    <!-- Main Content Area -->
+    <main class="app-main">
+      <!-- Top header bar -->
+      <header class="app-header">
+        <div class="header-welcome">
+          <h2 id="header-greeting">안녕하세요! 👋</h2>
+          <p id="header-date">오늘도 멋진 학습을 시작해볼까요?</p>
+        </div>
+        <div class="header-actions"></div>
+      </header>
+
+      <!-- TAB 1: Dashboard -->
+      <section id="dashboard-tab" class="tab-content active">
+        <!-- Level Selection Selector -->
+        <div class="dashboard-level-selector-row">
+          <label for="dash-level-select">레벨 선택:</label>
+          <select id="dash-level-select" class="select-input select-input-lg">
+            <!-- Dynamic levels populated by JS -->
+          </select>
+        </div>
+
+        <div class="dashboard-section-title">
+          <h3>레슨 학습 목록</h3>
+          <p>원하는 레슨을 선택하여 플래시카드 카드 학습 또는 단어 퀴즈를 바로 진행해보세요.</p>
+        </div>
+
+        <!-- Dynamic Lessons Grid -->
+        <div class="lessons-grid" id="dash-lessons-grid">
+          <!-- Dynamic Lesson Cards Go Here -->
+        </div>
+      </section>
+
+      <!-- TAB 2: Spaced Study (Flashcards) -->
+      <section id="study-tab" class="tab-content">
+        <div class="study-header">
+          <div class="study-filter">
+            <label for="study-level-filter">레벨:</label>
+            <select id="study-level-filter" class="select-input">
+              <option value="due">오늘 복습할 단어만</option>
+              <option value="all">전체 보관 단어</option>
+            </select>
+          </div>
+          <div class="study-filter" id="study-lesson-filter-container" style="display: none;">
+            <label for="study-lesson-filter">레슨:</label>
+            <select id="study-lesson-filter" class="select-input">
+              <option value="all">전체 레슨</option>
+            </select>
+          </div>
+          <div class="study-filter" id="study-segment-filter-container" style="display: none;">
+            <label for="study-segment-filter">구간:</label>
+            <select id="study-segment-filter" class="select-input">
+              <option value="all">전체 (1 ~ 60)</option>
+              <option value="1">1구간 (1 ~ 20)</option>
+              <option value="2">2구간 (21 ~ 40)</option>
+              <option value="3">3구간 (41 ~ 60)</option>
+            </select>
+          </div>
+          <div class="study-filter">
+            <label for="study-mode-select">카드 모드:</label>
+            <select id="study-mode-select" class="select-input">
+              <option value="eng-first">영어단어 먼저 보기</option>
+              <option value="kor-first">한글뜻 먼저 보기</option>
+            </select>
+          </div>
+          <div class="study-progress-container">
+            <span id="study-progress-text">0 / 0 단어</span>
+            <div class="study-progress-track">
+              <div class="study-progress-bar" id="study-progress-fill" style="width: 0%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Study Intro State -->
+        <div class="quiz-setup-card" id="study-intro-state" style="margin: 40px auto; max-width: 500px;">
+          <div class="setup-header">
+            <i data-lucide="book-open" class="setup-icon" style="color: var(--color-primary); filter: drop-shadow(0 0 10px var(--color-primary-glow));"></i>
+            <h3>플래시카드 학습 시작</h3>
+            <p>선택한 조건의 단어 카드를 보며 암기 학습을 진행합니다.</p>
+          </div>
+          <div class="setup-body" style="background: rgba(255,255,255,0.02); padding: 20px; border-radius: var(--radius-md); border: 1px solid var(--glass-border); margin-bottom: 24px; text-align: center;">
+            <p style="font-size: 13px; color: var(--text-secondary); margin-bottom: 8px;">학습 범위</p>
+            <h4 id="study-intro-scope" style="font-family: var(--font-display); font-size: 18px; font-weight: 700; color: #fff; margin-bottom: 16px;">Bridge V1 - Lesson 07</h4>
+            <div style="display: flex; justify-content: center; gap: 16px;">
+              <div>
+                <span style="display: block; font-size: 10px; color: var(--text-muted); font-weight: 600; text-transform: uppercase;">학습 대상 단어</span>
+                <span id="study-intro-count" style="font-family: var(--font-display); font-size: 20px; font-weight: 800; color: var(--color-primary);">30개</span>
+              </div>
+            </div>
+          </div>
+          <div class="setup-footer">
+            <button class="btn btn-primary btn-lg btn-block" id="study-start-session-btn">
+              <i data-lucide="play-circle"></i>
+              <span>학습 시작하기</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Flashcard View State -->
+        <div class="flashcard-area" id="flashcard-area" style="display: none;">
+          <div class="flashcard-wrapper">
+            <!-- Card Front / Back Structure -->
+            <div class="flashcard" id="flashcard">
+              <!-- FRONT -->
+              <div class="card-face card-front">
+                <div class="card-meta">
+                  <span class="badge level-badge" id="card-front-level">BEGINNER</span>
+                  <span class="badge box-badge" id="card-front-box">Box 1</span>
+                </div>
+                <div class="card-main-word">
+                  <h1 id="card-front-word">accomplish</h1>
+                  <button class="btn-voice" id="card-speak-btn" title="발음 듣기">
+                    <i data-lucide="volume-2"></i>
+                  </button>
+                </div>
+                <p class="card-hint">카드를 탭하거나 스페이스바를 눌러 뜻을 확인하세요.</p>
+              </div>
+
+              <!-- BACK -->
+              <div class="card-face card-back">
+                <div class="card-meta">
+                  <span class="badge level-badge" id="card-back-level">BEGINNER</span>
+                  <span class="badge box-badge" id="card-back-box">Box 1</span>
+                </div>
+                <div class="card-word-details">
+                  <div class="word-pronounce-row">
+                    <h2 id="card-back-word">accomplish</h2>
+                    <span class="pos-tag" id="card-back-pos">verb</span>
+                    <button class="btn-voice-sm" id="card-speak-btn-back">
+                      <i data-lucide="volume-2"></i>
+                    </button>
+                  </div>
+                  <div class="word-definition-row">
+                    <p class="meaning-korean" id="card-back-meaning">완수하다, 성취하다</p>
+                  </div>
+                  <div class="word-example-row">
+                    <p class="example-english" id="card-back-example">"We can accomplish anything if we work together."</p>
+                    <p class="example-korean" id="card-back-example-translation">"우리가 함께 노력한다면 어떤 것이든 해낼 수 있다."</p>
+                  </div>
+                </div>
+                <p class="card-hint">답이 생각났나요? 학습 결과를 선택해주세요.</p>
+              </div>
+            </div>
+          </div>
+
+          <!-- Evaluation controls -->
+          <div class="card-controls">
+            <button class="btn btn-danger btn-lg control-btn" id="study-btn-forgot">
+              <i data-lucide="x-circle"></i>
+              <span>모르겠어요 (Box 1행)</span>
+            </button>
+            <button class="btn btn-success btn-lg control-btn" id="study-btn-remembered">
+              <i data-lucide="check-circle"></i>
+              <span>알겠어요 (Box +1)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Empty Study State -->
+        <div class="empty-state" id="study-empty-state" style="display: none;">
+          <div class="empty-icon"><i data-lucide="smile"></i></div>
+          <h3>오늘 공부할 단어를 모두 완료했습니다!</h3>
+          <p>새 단어를 추가하거나, 학습 범위 필터를 전체 단어 혹은 수준별 단어로 설정해 추가 학습해보세요.</p>
+          <button class="btn btn-primary" id="study-reset-filter-btn">학습 범위 전체 단어로 변경</button>
+        </div>
+      </section>
+
+      <!-- TAB 3: Word Quiz -->
+      <section id="quiz-tab" class="tab-content">
+        <!-- Quiz Settings State -->
+        <div id="quiz-setup-container" class="quiz-setup-card">
+          <div class="setup-header">
+            <i data-lucide="award" class="setup-icon"></i>
+            <h3>단어 퀴즈 설정</h3>
+            <p>다양한 난이도와 퀴즈 방식을 통해 복습 상태를 점검해보세요.</p>
+          </div>
+
+          <div class="setup-body">
+            <div class="form-group">
+              <label for="quiz-mode-select">퀴즈 모드</label>
+              <select id="quiz-mode-select" class="select-input">
+                <option value="choice">4지선다형 뜻 맞추기 (객관식)</option>
+                <option value="spelling">스펠링 타이핑 퀴즈 (주관식)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="quiz-level-select">레벨 필터</label>
+              <select id="quiz-level-select" class="select-input">
+                <option value="all">전체 레벨</option>
+              </select>
+            </div>
+            <div class="form-group" id="quiz-lesson-select-container" style="display: none;">
+              <label for="quiz-lesson-select">레슨 필터</label>
+              <select id="quiz-lesson-select" class="select-input">
+                <option value="all">전체 레슨</option>
+              </select>
+            </div>
+            <div class="form-group" id="quiz-segment-select-container" style="display: none;">
+              <label for="quiz-segment-select">학습 구간</label>
+              <select id="quiz-segment-select" class="select-input">
+                <option value="all">전체 (1 ~ 60)</option>
+                <option value="1">1구간 (1 ~ 20)</option>
+                <option value="2">2구간 (21 ~ 40)</option>
+                <option value="3">3구간 (41 ~ 60)</option>
+              </select>
+            </div>
+            <div class="form-group">
+              <label for="quiz-count-select">문제 수</label>
+              <select id="quiz-count-select" class="select-input">
+                <option value="10">10 문제</option>
+                <option value="20">20 문제</option>
+                <option value="30">30 문제</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="setup-footer">
+            <button class="btn btn-primary btn-lg btn-block" id="quiz-start-btn">
+              <i data-lucide="play-circle"></i>
+              <span>퀴즈 시작하기</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Active Quiz Play State -->
+        <div id="quiz-play-container" class="quiz-play-card" style="display: none;">
+          <div class="quiz-play-header">
+            <div class="quiz-progress-text">문제 <span id="quiz-current-num">1</span> / <span id="quiz-total-num">10</span></div>
+            <div class="quiz-timer">
+              <i data-lucide="alarm-clock"></i>
+              <span id="quiz-timer-text">00:00</span>
+            </div>
+          </div>
+          <div class="quiz-progress-track">
+            <div class="quiz-progress-bar" id="quiz-play-progress-fill" style="width: 10%;"></div>
+          </div>
+
+          <!-- Question Section -->
+          <div class="quiz-question-box">
+            <span class="badge level-badge" id="quiz-question-level">BEGINNER</span>
+            <div class="quiz-question-header">
+              <h2 id="quiz-question-word">accomplish</h2>
+              <button class="btn-voice-sm" id="quiz-speak-btn">
+                <i data-lucide="volume-2"></i>
+              </button>
+            </div>
+            <p class="quiz-question-subtitle" id="quiz-question-hint">이 단어의 알맞은 한글 뜻을 선택하세요.</p>
+          </div>
+
+          <!-- Choice Mode Box -->
+          <div class="quiz-options-grid" id="quiz-options-container">
+            <!-- Dynamic Choice Buttons Go Here -->
+          </div>
+
+          <!-- Spelling Mode Box -->
+          <div class="quiz-spelling-box" id="quiz-spelling-container" style="display: none;">
+            <p class="spelling-meaning-prompt" id="spelling-meaning-prompt">뜻: 완수하다, 성취하다</p>
+            <div class="spelling-input-row">
+              <input type="text" id="spelling-input" placeholder="스펠링을 입력하세요" autocomplete="off" spellcheck="false">
+              <button class="btn btn-primary" id="spelling-submit-btn">제출</button>
+            </div>
+          </div>
+
+          <!-- Feedback notification popup -->
+          <div class="quiz-feedback-banner" id="quiz-feedback-banner" style="display: none;">
+            <div class="feedback-icon-box" id="feedback-icon-box">
+              <i data-lucide="check"></i>
+            </div>
+            <div class="feedback-text-box">
+              <h4 id="feedback-title">정답입니다!</h4>
+              <p id="feedback-desc">훌륭해요!</p>
+            </div>
+            <button class="btn btn-primary btn-sm" id="quiz-next-btn">다음 문제</button>
+          </div>
+        </div>
+
+        <!-- Quiz Result State -->
+        <div id="quiz-result-container" class="quiz-result-card" style="display: none;">
+          <div class="result-celebration">
+            <div class="trophy-outer">
+              <i data-lucide="trophy"></i>
+            </div>
+            <h2>퀴즈 완료! 🎉</h2>
+            <p>학습 결과를 점검했습니다. 실력이 나날이 늘고 있어요!</p>
+          </div>
+
+          <div class="result-stats">
+            <div class="result-stat-item">
+              <span class="value" id="result-score">8 / 10</span>
+              <span class="label">점수</span>
+            </div>
+            <div class="result-stat-item">
+              <span class="value" id="result-accuracy">80%</span>
+              <span class="label">정답률</span>
+            </div>
+            <div class="result-stat-item">
+              <span class="value" id="result-time">0m 45s</span>
+              <span class="label">소요 시간</span>
+            </div>
+          </div>
+
+          <div class="result-wrong-list" id="result-wrong-section" style="display: none;">
+            <h4>틀린 단어 복습</h4>
+            <div class="wrong-words-grid" id="result-wrong-words-container">
+              <!-- Dynamic list of wrong words -->
+            </div>
+          </div>
+
+          <div class="result-actions">
+            <button class="btn btn-outline" id="quiz-retry-btn">다시 하기</button>
+            <button class="btn btn-primary" id="quiz-go-study-btn">부족한 단어 학습하기</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB: Dictation Menu (불러주기 받아쓰기) -->
+      <section id="dictation-tab" class="tab-content">
+        <!-- 1. Settings State -->
+        <div id="dictation-setup-container" class="quiz-setup-card">
+          <div class="setup-header">
+            <i data-lucide="pen-tool" class="setup-icon" style="color: var(--color-primary); filter: drop-shadow(0 0 10px var(--color-primary-glow));"></i>
+            <h3>받아쓰기 불러주기 설정</h3>
+            <p>화면에 표시되는 영단어 또는 한글 뜻을 보고 종이에 철자를 적어보세요.</p>
+          </div>
+
+          <div class="setup-body">
+            <div class="form-group">
+              <label for="dictation-level-filter">레벨 선택</label>
+              <select id="dictation-level-filter" class="select-input">
+                <option value="all">전체 보관 단어</option>
+              </select>
+            </div>
+
+            <div class="form-group" id="dictation-lesson-filter-container" style="display: none;">
+              <label for="dictation-lesson-filter">레슨 선택</label>
+              <select id="dictation-lesson-filter" class="select-input">
+                <option value="all">전체 레슨</option>
+              </select>
+            </div>
+
+            <div class="form-group" id="dictation-segment-filter-container" style="display: none;">
+              <label for="dictation-segment-filter">학습 구간</label>
+              <select id="dictation-segment-filter" class="select-input">
+                <option value="all">전체 (1 ~ 60)</option>
+                <option value="1">1구간 (1 ~ 20)</option>
+                <option value="2">2구간 (21 ~ 40)</option>
+                <option value="3">3구간 (41 ~ 60)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="dictation-mode-select">출제 모드</label>
+              <select id="dictation-mode-select" class="select-input">
+                <option value="audio-only">영어 단어 듣기</option>
+                <option value="text-only">스펠링 보기</option>
+                <option value="mixed">섞어서 하기 (영어 단어 듣기 또는 스펠링 보기 임의 출제)</option>
+              </select>
+            </div>
+
+            <div class="form-group">
+              <label for="dictation-count-select">문제 수</label>
+              <select id="dictation-count-select" class="select-input">
+                <option value="10">10 문제</option>
+                <option value="20">20 문제</option>
+                <option value="30">30 문제</option>
+                <option value="40">40 문제</option>
+                <option value="50">50 문제</option>
+                <option value="all">전체 문제</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="setup-footer">
+            <button class="btn btn-primary btn-lg btn-block" id="dictation-start-btn">
+              <i data-lucide="play-circle"></i>
+              <span>받아쓰기 시작하기</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 2. Active Session State -->
+        <div id="dictation-play-container" class="quiz-play-card" style="display: none;">
+          <div class="quiz-progress-header">
+            <div class="quiz-badge" id="dictation-scope-badge">BRIDGE A2 — LESSON 06</div>
+            <span class="quiz-progress-text" id="dictation-progress-text">1 / 10 단어</span>
+          </div>
+
+          <!-- Prompt Card display area -->
+          <div class="quiz-question-box" style="margin: 40px 0; min-height: 180px; display: flex; flex-direction: column; justify-content: center; align-items: center;">
+            <p style="font-size: 13px; color: var(--text-muted); margin-bottom: 12px;" id="dictation-card-hint-text">종이에 영어 단어를 받아 적으세요</p>
+            <h1 id="dictation-card-prompt-text" style="font-size: 42px; font-weight: 800; font-family: var(--font-display); color: #fff; text-align: center; line-height: 1.3; text-shadow: 0 0 20px rgba(255,255,255,0.1);">학교, 학파</h1>
+            <!-- Audio Replay Button for English prompts -->
+            <button class="btn btn-secondary btn-icon" id="dictation-replay-btn" style="display: none; border-radius: 50%; width: 64px; height: 64px; background: rgba(255, 255, 255, 0.05); border: 1px solid var(--glass-border); color: #fff; justify-content: center; align-items: center; margin-top: 15px;">
+              <i data-lucide="volume-2" style="width: 28px; height: 28px;"></i>
+            </button>
+          </div>
+
+          <div class="quiz-actions" style="margin-top: 30px; display: flex; gap: 16px;">
+            <button class="btn btn-primary btn-lg" style="flex: 1;" id="dictation-next-btn">
+              <span>다음 단어</span>
+              <i data-lucide="arrow-right"></i>
+            </button>
+            <button class="btn btn-secondary btn-lg" style="width: auto; padding: 0 24px;" id="dictation-show-results-btn">
+              <span>정답 확인 (채점)</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- 3. Result / Answer Sheet State -->
+        <div id="dictation-result-container" class="quiz-result-card" style="display: none;">
+          <div class="result-header">
+            <div class="result-icon-glow" style="background: rgba(16,185,129,0.1); border-color: rgba(16,185,129,0.3); color: #10b981;">
+              <i data-lucide="check-square" style="width: 32px; height: 32px;"></i>
+            </div>
+            <h3>받아쓰기 정답표</h3>
+            <p>종이에 적은 단어들을 아래 정답표와 비교하여 채점해 보세요.</p>
+          </div>
+
+          <div style="margin-top: 24px; max-height: 380px; overflow-x: auto; overflow-y: auto; border: 1px solid var(--glass-border); border-radius: var(--radius-md); background: rgba(255,255,255,0.01); -webkit-overflow-scrolling: touch;">
+            <table style="width: 100%; border-collapse: collapse; font-size: 14px; text-align: left;">
+              <thead>
+                <tr style="background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--glass-border);">
+                  <th style="padding: 12px 16px; width: 60px; color: var(--text-muted); font-weight: 600;">번호</th>
+                  <th style="padding: 12px 16px; color: var(--text-muted); font-weight: 600;">제시된 문제</th>
+                  <th style="padding: 12px 16px; color: var(--text-muted); font-weight: 600;">정답 (영단어)</th>
+                  <th style="padding: 12px 16px; color: var(--text-muted); font-weight: 600;">품사</th>
+                  <th style="padding: 12px 16px; color: var(--text-muted); font-weight: 600;">한글 뜻</th>
+                </tr>
+              </thead>
+              <tbody id="dictation-answers-tbody">
+                <!-- Dynamic rows filled by JavaScript -->
+              </tbody>
+            </table>
+          </div>
+
+          <div class="result-actions" style="margin-top: 30px; display: flex; gap: 16px; justify-content: center;">
+            <button class="btn btn-primary btn-lg" id="dictation-retry-btn">다시 하기</button>
+            <button class="btn btn-outline btn-lg" id="dictation-dashboard-btn">대시보드로 가기</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- TAB 4: Manage Word List -->
+      <section id="manage-tab" class="tab-content">
+        <div class="manage-header-row">
+          <div class="search-filter-bar">
+            <div class="search-input-wrapper">
+              <i data-lucide="search" class="search-icon"></i>
+              <input type="text" id="manage-search" placeholder="단어, 품사, 뜻 검색...">
+            </div>
+            <select id="manage-level-filter" class="select-input">
+              <option value="all">모든 레벨</option>
+            </select>
+            <select id="manage-lesson-filter" class="select-input" style="display: none;">
+              <option value="all">모든 레슨</option>
+            </select>
+            <select id="manage-box-filter" class="select-input">
+              <option value="all">모든 Box</option>
+              <option value="1">Box 1</option>
+              <option value="2">Box 2</option>
+              <option value="3">Box 3</option>
+              <option value="4">Box 4</option>
+              <option value="5">Box 5</option>
+            </select>
+          </div>
+          <div class="manage-actions">
+            <button class="btn btn-outline" id="btn-reset-progress">
+              <i data-lucide="rotate-ccw"></i>
+              <span>학습 진도 초기화</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="words-table-wrapper">
+          <table class="words-table">
+            <thead>
+              <tr>
+                <th>단어</th>
+                <th>품사</th>
+                <th>뜻</th>
+                <th>레벨 / 레슨</th>
+                <th>학습 박스</th>
+                <th>다음 복습일</th>
+                <th>관리</th>
+              </tr>
+            </thead>
+            <tbody id="words-table-body">
+              <!-- Dynamic rows here -->
+            </tbody>
+          </table>
+          <div class="table-empty-state" id="table-empty-state" style="display: none;">
+            <i data-lucide="alert-circle"></i>
+            <p>검색 조건에 맞는 단어가 존재하지 않습니다.</p>
+          </div>
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <!-- MODAL: Add / Edit Word -->
+  <div class="modal-overlay" id="word-modal">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 id="modal-title">새로운 영어 단어 추가</h3>
+        <button class="modal-close" id="modal-close-btn">&times;</button>
+      </div>
+      <form id="word-form">
+        <div class="modal-body">
+          <input type="hidden" id="edit-word-id">
+          <div class="form-row">
+            <div class="form-group col-6">
+              <label for="form-word">영어 단어 <span class="required">*</span></label>
+              <input type="text" id="form-word" required placeholder="예: brilliant" autocomplete="off">
+            </div>
+            <div class="form-group col-6">
+              <label for="form-pos">품사 <span class="required">*</span></label>
+              <input type="text" id="form-pos" required placeholder="예: adjective" autocomplete="off">
+            </div>
+          </div>
+          <div class="form-group">
+            <label for="form-definition">한글 뜻 <span class="required">*</span></label>
+            <input type="text" id="form-definition" required placeholder="예: 매우 밝은, 뛰어난" autocomplete="off">
+          </div>
+          <div class="form-row">
+            <div class="form-group col-6">
+              <label for="form-level">레벨명 <span class="required">*</span></label>
+              <input type="text" id="form-level" required placeholder="예: Bridge V1" autocomplete="off">
+            </div>
+            <div class="form-group col-6">
+              <label for="form-lesson">레슨 번호 <span class="required">*</span></label>
+              <input type="text" id="form-lesson" required placeholder="예: Lesson 07" autocomplete="off">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="form-example">영어 예문</label>
+            <input type="text" id="form-example" placeholder="예: She gave a brilliant performance.">
+          </div>
+          <div class="form-group">
+            <label for="form-example-trans">예문 해석</label>
+            <input type="text" id="form-example-trans" placeholder="예: 그녀는 훌륭한 연기를 선보였다.">
+          </div>
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline" id="modal-cancel-btn">취소</button>
+          <button type="submit" class="btn btn-primary" id="modal-submit-btn">저장하기</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Scripts -->
+  <script src="default-words.js"></script>
+  <script src="js/core-state.js"></script>
+  <script src="js/voice-engine.js"></script>
+  <script src="js/tab-dashboard.js"></script>
+  <script src="js/tab-study.js"></script>
+  <script src="js/tab-quiz.js"></script>
+  <script src="js/tab-dictation.js"></script>
+  <script src="js/tab-manage.js"></script>
+</body>
+</html>

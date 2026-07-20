@@ -1,0 +1,1863 @@
+/**
+ * LingoPop - Core Application Logic
+ * Leitner System, Flashcard Interactions, Quiz Engines, and Local Database Management
+ */
+
+// --- State Configurations ---
+const DB_VERSION = "a2_l05_l06_l07_v1";
+let words = [];
+let streak = 0;
+let lastStudyDate = null;
+
+// Study session state
+let studySession = {
+  words: [],
+  currentIndex: 0
+};
+
+// Quiz session state
+let quizSession = {
+  words: [],
+  currentIndex: 0,
+  score: 0,
+  mode: 'choice', // 'choice' or 'spelling'
+  timer: 0,
+  timerInterval: null,
+  wrongWords: []
+};
+
+// Dictation session state
+let dictationSession = {
+  words: [],
+  currentIndex: 0,
+  prompts: [], // array of { word: wordObj, type: 'eng' | 'kor', promptText: string }
+  mode: 'kor-only' // 'kor-only', 'eng-only', 'mixed'
+};
+
+// Leitner Box Intervals (in milliseconds)
+const LEITNER_INTERVALS = {
+  1: 24 * 60 * 60 * 1000,      // Box 1: 1 Day
+  2: 2 * 24 * 60 * 60 * 1000,  // Box 2: 2 Days
+  3: 4 * 24 * 60 * 60 * 1000,  // Box 3: 4 Days
+  4: 7 * 24 * 60 * 60 * 1000,  // Box 4: 7 Days
+  5: 14 * 24 * 60 * 60 * 1000  // Box 5: 14 Days (Mastered)
+};
+
+// --- Initializing Application ---
+document.addEventListener('DOMContentLoaded', () => {
+  loadData();
+  setupNavigation();
+  setupDashboard();
+  setupStudy();
+  setupQuiz();
+  setupDictation();
+  setupManage();
+  setupModals();
+  updateStreakDisplay();
+  
+  // Create initial Lucide icons
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+});
+
+// --- LocalStorage & Data Management ---
+function loadData() {
+  const currentDbVersion = localStorage.getItem('lingopop_db_version');
+  const storedWords = localStorage.getItem('lingopop_words');
+  
+  if (currentDbVersion !== DB_VERSION || !storedWords) {
+    console.log("새로운 데이터베이스 버전 감지: 데이터를 최신 상태로 초기화합니다.");
+    words = JSON.parse(JSON.stringify(window.defaultWords)); // deep copy
+    saveData();
+    localStorage.setItem('lingopop_db_version', DB_VERSION);
+  } else {
+    try {
+      words = JSON.parse(storedWords);
+      // Migration: 만약 b1 혹은 레슨 분리 데이터 스키마가 없는 기존 데이터가 감지되면 새 단어 목록으로 마이그레이션
+      const hasOldWords = words.some(w => w.id === 'b1' || !w.hasOwnProperty('lesson'));
+      if (hasOldWords) {
+        console.log("레벨/레슨이 분리된 최신 단어 스키마가 감지되지 않아 데이터 마이그레이션을 실행합니다.");
+        words = [...window.defaultWords];
+        saveData();
+      } else {
+        // Sync: window.defaultWords에 새로 추가된 단어들이 로컬스토리지에 없으면 안전하게 병합
+        let hasNewDefaultWords = false;
+        window.defaultWords.forEach(defaultWord => {
+          const exists = words.some(w => w.id === defaultWord.id);
+          if (!exists) {
+            words.push({ ...defaultWord });
+            hasNewDefaultWords = true;
+          }
+        });
+        if (hasNewDefaultWords) {
+          console.log("새롭게 추가된 기본 단어 목록을 발견하여 병합합니다.");
+          saveData();
+        }
+      }
+    } catch (e) {
+      console.error("Failed to parse stored words, resetting...", e);
+      words = [...window.defaultWords];
+      saveData();
+    }
+  }
+
+  // Load streak details
+  streak = parseInt(localStorage.getItem('lingopop_streak')) || 0;
+  lastStudyDate = localStorage.getItem('lingopop_last_study_date') || null;
+
+  // Initialize level and lesson filter dropdown values
+  updateLevelFilters();
+}
+
+function saveData() {
+  localStorage.setItem('lingopop_words', JSON.stringify(words));
+  updateDashboardStats();
+  updateLevelFilters();
+}
+
+function resetDatabase() {
+  if (confirm("정말 단어장을 초기화하시겠습니까?\n모든 학습 진행 상태(Box 단계)가 초기화되고 기본 단어 데이터베이스로 복구됩니다.")) {
+    words = JSON.parse(JSON.stringify(window.defaultWords)); // deep copy default
+    saveData();
+    renderManageTable();
+    updateDashboardStats();
+    alert("단어장이 기본 상태로 성공적으로 초기화되었습니다.");
+  }
+}
+
+function updateLevelFilters() {
+  // Get all unique levels from words
+  const uniqueLevels = Array.from(new Set(words.map(w => w.level))).filter(Boolean).sort().reverse();
+  
+  // Update study filter level dropdown
+  const studyFilter = document.getElementById('study-level-filter');
+  if (studyFilter) {
+    const studyValue = studyFilter.value;
+    studyFilter.innerHTML = `
+      <option value="due">오늘 복습할 단어만</option>
+      <option value="all">전체 보관 단어</option>
+    `;
+    uniqueLevels.forEach(lvl => {
+      studyFilter.innerHTML += `<option value="${lvl}">${lvl}</option>`;
+    });
+    if ([...studyFilter.options].some(opt => opt.value === studyValue)) {
+      studyFilter.value = studyValue;
+    } else {
+      studyFilter.value = 'due';
+    }
+  }
+
+  // Update quiz filter level dropdown
+  const quizFilter = document.getElementById('quiz-level-select');
+  if (quizFilter) {
+    const quizValue = quizFilter.value;
+    quizFilter.innerHTML = `<option value="all">전체 레벨</option>`;
+    uniqueLevels.forEach(lvl => {
+      quizFilter.innerHTML += `<option value="${lvl}">${lvl}</option>`;
+    });
+    if ([...quizFilter.options].some(opt => opt.value === quizValue)) {
+      quizFilter.value = quizValue;
+    } else {
+      quizFilter.value = 'all';
+    }
+  }
+
+  // Update manage filter level dropdown
+  const manageFilter = document.getElementById('manage-level-filter');
+  if (manageFilter) {
+    const manageValue = manageFilter.value;
+    manageFilter.innerHTML = `<option value="all">모든 레벨</option>`;
+    uniqueLevels.forEach(lvl => {
+      manageFilter.innerHTML += `<option value="${lvl}">${lvl}</option>`;
+    });
+    if ([...manageFilter.options].some(opt => opt.value === manageValue)) {
+      manageFilter.value = manageValue;
+    } else {
+      manageFilter.value = 'all';
+    }
+  }
+
+  // Update dictation filter level dropdown
+  const dictationFilter = document.getElementById('dictation-level-filter');
+  if (dictationFilter) {
+    const dictationValue = dictationFilter.value;
+    dictationFilter.innerHTML = `<option value="all">전체 보관 단어</option>`;
+    uniqueLevels.forEach(lvl => {
+      dictationFilter.innerHTML += `<option value="${lvl}">${lvl}</option>`;
+    });
+    if ([...dictationFilter.options].some(opt => opt.value === dictationValue)) {
+      dictationFilter.value = dictationValue;
+    } else {
+      dictationFilter.value = 'all';
+    }
+  }
+
+  // Populate dynamic lesson filters based on selected levels
+  updateLessonFilters('study');
+  updateLessonFilters('quiz');
+  updateLessonFilters('dictation');
+  updateLessonFilters('manage');
+}
+
+function updateLessonFilters(tabType) {
+  let levelVal = '';
+  let lessonFilterElement = null;
+  let containerElement = null;
+
+  if (tabType === 'study') {
+    levelVal = document.getElementById('study-level-filter').value;
+    lessonFilterElement = document.getElementById('study-lesson-filter');
+    containerElement = document.getElementById('study-lesson-filter-container');
+  } else if (tabType === 'quiz') {
+    levelVal = document.getElementById('quiz-level-select').value;
+    lessonFilterElement = document.getElementById('quiz-lesson-select');
+    containerElement = document.getElementById('quiz-lesson-select-container');
+  } else if (tabType === 'dictation') {
+    levelVal = document.getElementById('dictation-level-filter').value;
+    lessonFilterElement = document.getElementById('dictation-lesson-filter');
+    containerElement = document.getElementById('dictation-lesson-filter-container');
+  } else if (tabType === 'manage') {
+    levelVal = document.getElementById('manage-level-filter').value;
+    lessonFilterElement = document.getElementById('manage-lesson-filter');
+    containerElement = null; // show/hide handled via style directly in code below
+  }
+
+  if (!lessonFilterElement) return;
+
+  if (levelVal === 'due' || levelVal === 'all') {
+    // Hide lesson dropdown
+    if (containerElement) {
+      containerElement.style.display = 'none';
+    } else if (tabType === 'manage' && lessonFilterElement) {
+      lessonFilterElement.style.display = 'none';
+    }
+    return;
+  }
+
+  // Show lesson dropdown and populate lessons belonging to selected level
+  if (containerElement) {
+    containerElement.style.display = 'flex';
+  } else if (tabType === 'manage') {
+    lessonFilterElement.style.display = 'inline-block';
+  }
+
+  // Find unique lessons for this level
+  const relatedWords = words.filter(w => w.level === levelVal);
+  
+  // Sort lessons based on alphanumeric ordering
+  const uniqueLessons = Array.from(new Set(relatedWords.map(w => w.lesson))).filter(Boolean).sort((a, b) => {
+    return b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' });
+  });
+
+  const prevValue = lessonFilterElement.value;
+  lessonFilterElement.innerHTML = `<option value="all">전체 레슨</option>`;
+  
+  uniqueLessons.forEach(lsn => {
+    lessonFilterElement.innerHTML += `<option value="${lsn}">${lsn}</option>`;
+  });
+
+  if ([...lessonFilterElement.options].some(opt => opt.value === prevValue)) {
+    lessonFilterElement.value = prevValue;
+  } else {
+    lessonFilterElement.value = 'all';
+  }
+
+  updateSegmentFiltersVisibility(tabType);
+}
+
+function updateSegmentFiltersVisibility(tabType) {
+  if (tabType === 'study') {
+    const levelVal = document.getElementById('study-level-filter').value;
+    const lessonVal = document.getElementById('study-lesson-filter').value;
+    const segmentContainer = document.getElementById('study-segment-filter-container');
+    if (segmentContainer) {
+      if (levelVal !== 'due' && levelVal !== 'all' && lessonVal !== 'all') {
+        segmentContainer.style.display = 'flex';
+      } else {
+        segmentContainer.style.display = 'none';
+        document.getElementById('study-segment-filter').value = 'all';
+      }
+    }
+  } else if (tabType === 'quiz') {
+    const levelVal = document.getElementById('quiz-level-select').value;
+    const lessonVal = document.getElementById('quiz-lesson-select').value;
+    const segmentContainer = document.getElementById('quiz-segment-select-container');
+    if (segmentContainer) {
+      if (levelVal !== 'all' && lessonVal !== 'all') {
+        segmentContainer.style.display = 'block';
+      } else {
+        segmentContainer.style.display = 'none';
+        document.getElementById('quiz-segment-select').value = 'all';
+      }
+    }
+  } else if (tabType === 'dictation') {
+    const levelVal = document.getElementById('dictation-level-filter').value;
+    const lessonVal = document.getElementById('dictation-lesson-filter').value;
+    const segmentContainer = document.getElementById('dictation-segment-filter-container');
+    if (segmentContainer) {
+      if (levelVal !== 'all' && lessonVal !== 'all') {
+        segmentContainer.style.display = 'block';
+      } else {
+        segmentContainer.style.display = 'none';
+        document.getElementById('dictation-segment-filter').value = 'all';
+      }
+    }
+  }
+}
+
+// --- Navigation Tab System ---
+function setupNavigation() {
+  const navButtons = document.querySelectorAll('.nav-btn');
+  const tabs = document.querySelectorAll('.tab-content');
+
+  navButtons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      const targetTab = btn.getAttribute('data-target');
+      
+      navButtons.forEach(b => b.classList.remove('active'));
+      tabs.forEach(t => t.classList.remove('active'));
+      
+      btn.classList.add('active');
+      const targetElement = document.getElementById(targetTab);
+      if (targetElement) {
+        targetElement.classList.add('active');
+      }
+
+      // Context specific updates when entering tabs
+      if (targetTab === 'dashboard-tab') {
+        updateDashboardStats();
+      } else if (targetTab === 'study-tab') {
+        initStudySession(); // 리프레시: 플래시카드 첫 카드부터 다시 학습 시작
+      } else if (targetTab === 'quiz-tab') {
+        resetQuizState(); // 리프레시: 진행중이던 퀴즈를 리셋하고 설정창으로 돌아감
+      } else if (targetTab === 'dictation-tab') {
+        resetDictationState(); // 리프레시: 진행중이던 받아쓰기를 리셋하고 설정창으로 돌아감
+      } else if (targetTab === 'manage-tab') {
+        renderManageTable();
+      }
+    });
+  });
+}
+
+// --- Streak System Logic ---
+function incrementStreak() {
+  const today = new Date().toDateString();
+  
+  if (lastStudyDate === today) {
+    return; // Already studied today
+  }
+
+  if (lastStudyDate) {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    if (new Date(lastStudyDate).toDateString() === yesterday.toDateString()) {
+      streak += 1;
+    } else {
+      streak = 1; // Streak broken, restart
+    }
+  } else {
+    streak = 1; // First study
+  }
+
+  lastStudyDate = today;
+  localStorage.setItem('lingopop_streak', streak);
+  localStorage.setItem('lingopop_last_study_date', lastStudyDate);
+  updateStreakDisplay();
+}
+
+function updateStreakDisplay() {
+  const streakDays = document.getElementById('streak-days');
+  if (streakDays) {
+    streakDays.textContent = streak;
+  }
+}
+
+// --- Web Speech API (Voice Synthesis) ---
+function speakWord(text) {
+  if ('speechSynthesis' in window) {
+    // Cancel ongoing speak speech
+    window.speechSynthesis.cancel();
+
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = 'en-US';
+    
+    // Attempt to locate a premium english voice
+    const voices = window.speechSynthesis.getVoices();
+    const englishVoice = voices.find(voice => voice.lang.startsWith('en') && voice.name.includes('Google'));
+    if (englishVoice) {
+      utterance.voice = englishVoice;
+    }
+    
+    utterance.rate = 0.9; // Slightly slower for clear learning
+    window.speechSynthesis.speak(utterance);
+  } else {
+    console.warn("Speech Synthesis is not supported in this browser.");
+  }
+}
+
+// --- TAB 1: Dashboard Logic ---
+function setupDashboard() {
+  const dashLevelSelect = document.getElementById('dash-level-select');
+  if (dashLevelSelect) {
+    dashLevelSelect.addEventListener('change', () => {
+      renderDashboardLessons();
+    });
+  }
+  updateDashboardStats();
+}
+
+function updateDashboardStats() {
+  const now = Date.now();
+  
+  // Update sidebar badge for total due count
+  const due = words.filter(w => !w.nextReview || w.nextReview <= now).length;
+  const sidebarDueBadge = document.getElementById('sidebar-due-badge');
+  if (sidebarDueBadge) {
+    if (due > 0) {
+      sidebarDueBadge.textContent = due;
+      sidebarDueBadge.style.display = 'inline-block';
+    } else {
+      sidebarDueBadge.style.display = 'none';
+    }
+  }
+
+  // Populate level dropdown in dashboard
+  const uniqueLevels = Array.from(new Set(words.map(w => w.level))).filter(Boolean).sort();
+  const dashLevelSelect = document.getElementById('dash-level-select');
+  
+  if (dashLevelSelect) {
+    const prevValue = dashLevelSelect.value;
+    dashLevelSelect.innerHTML = `<option value="all">전체 레벨</option>`;
+    uniqueLevels.forEach(lvl => {
+      dashLevelSelect.innerHTML += `<option value="${lvl}">${lvl}</option>`;
+    });
+    
+    if ([...dashLevelSelect.options].some(opt => opt.value === prevValue)) {
+      dashLevelSelect.value = prevValue;
+    } else {
+      dashLevelSelect.value = 'all';
+    }
+  }
+
+  renderDashboardLessons();
+}
+
+function renderDashboardLessons() {
+  const dashLevelSelect = document.getElementById('dash-level-select');
+  const levelFilter = dashLevelSelect ? dashLevelSelect.value : 'all';
+  const gridContainer = document.getElementById('dash-lessons-grid');
+  
+  if (!gridContainer) return;
+  gridContainer.innerHTML = '';
+
+  // Get unique level-lesson combinations
+  const groups = {};
+  words.forEach(w => {
+    if (levelFilter !== 'all' && w.level !== levelFilter) return;
+    const key = `${w.level}__${w.lesson}`;
+    if (!groups[key]) {
+      groups[key] = {
+        level: w.level,
+        lesson: w.lesson,
+        words: []
+      };
+    }
+    groups[key].words.push(w);
+  });
+
+  const sortedKeys = Object.keys(groups).sort((a, b) => {
+    // Sort by level first, then lesson (descending)
+    const gA = groups[a];
+    const gB = groups[b];
+    const lvlCompare = gB.level.localeCompare(gA.level);
+    if (lvlCompare !== 0) return lvlCompare;
+    return gB.lesson.localeCompare(gA.lesson, undefined, { numeric: true, sensitivity: 'base' });
+  });
+
+  if (sortedKeys.length === 0) {
+    gridContainer.innerHTML = `
+      <div class="empty-state" style="grid-column: 1/-1; margin: 20px 0;">
+        <i data-lucide="alert-circle" style="width: 32px; height: 32px; color: var(--text-secondary); margin-bottom: 12px;"></i>
+        <p style="color: var(--text-secondary);">표시할 레슨이 없습니다. 단어를 새로 등록해 주세요.</p>
+      </div>
+    `;
+    if (window.lucide) window.lucide.createIcons();
+    return;
+  }
+
+  const now = Date.now();
+
+  sortedKeys.forEach(key => {
+    const group = groups[key];
+    const totalCount = group.words.length;
+    const dueCount = group.words.filter(w => !w.nextReview || w.nextReview <= now).length;
+    const masteredCount = group.words.filter(w => w.box === 5).length;
+    
+    // Calculate average box progression
+    let sumProgress = 0;
+    group.words.forEach(w => {
+      sumProgress += ((w.box - 1) / 4);
+    });
+    const progressPct = totalCount > 0 ? Math.round((sumProgress / totalCount) * 100) : 0;
+
+    const card = document.createElement('div');
+    card.className = 'lesson-card';
+    card.innerHTML = `
+      <div class="lesson-card-header">
+        <span class="badge level-badge">${group.level.toUpperCase()}</span>
+        <span class="lesson-number">${group.lesson}</span>
+      </div>
+      <div class="lesson-stats">
+        <div class="stat-item">
+          <span class="label">총 단어</span>
+          <span class="value">${totalCount}개</span>
+        </div>
+        <div class="stat-item">
+          <span class="label">복습 필요</span>
+          <span class="value text-warning">${dueCount}개</span>
+        </div>
+        <div class="stat-item">
+          <span class="label">마스터</span>
+          <span class="value text-success">${masteredCount}개</span>
+        </div>
+      </div>
+      <div class="lesson-progress-row">
+        <div class="progress-info">
+          <span>학습 완료율</span>
+          <span>${progressPct}%</span>
+        </div>
+        <div class="progress-track">
+          <div class="progress-bar" style="width: ${progressPct}%"></div>
+        </div>
+      </div>
+      <div class="lesson-card-actions">
+        <button class="btn btn-primary btn-sm btn-study" data-level="${group.level}" data-lesson="${group.lesson}">
+          <i data-lucide="book-open"></i>
+          <span>학습하기</span>
+        </button>
+        <button class="btn btn-outline btn-sm btn-quiz" data-level="${group.level}" data-lesson="${group.lesson}">
+          <i data-lucide="award"></i>
+          <span>퀴즈풀기</span>
+        </button>
+      </div>
+    `;
+
+    // Click triggers
+    card.querySelector('.btn-study').addEventListener('click', (e) => {
+      const targetLvl = e.currentTarget.getAttribute('data-level');
+      const targetLsn = e.currentTarget.getAttribute('data-lesson');
+      
+      // Go to study tab
+      document.getElementById('study-level-filter').value = targetLvl;
+      updateLessonFilters('study');
+      document.getElementById('study-lesson-filter').value = targetLsn;
+      
+      const studySeg = document.getElementById('study-segment-filter');
+      if (studySeg) studySeg.value = 'all';
+      updateSegmentFiltersVisibility('study');
+      
+      document.getElementById('nav-study-btn').click();
+      initStudySession();
+    });
+
+    card.querySelector('.btn-quiz').addEventListener('click', (e) => {
+      const targetLvl = e.currentTarget.getAttribute('data-level');
+      const targetLsn = e.currentTarget.getAttribute('data-lesson');
+      
+      // Select Level & Lesson in Quiz tab
+      document.getElementById('quiz-level-select').value = targetLvl;
+      updateLessonFilters('quiz');
+      document.getElementById('quiz-lesson-select').value = targetLsn;
+      
+      const quizSeg = document.getElementById('quiz-segment-select');
+      if (quizSeg) quizSeg.value = 'all';
+      updateSegmentFiltersVisibility('quiz');
+      
+      // Go to quiz tab
+      const navButtons = document.querySelectorAll('.nav-btn');
+      const quizNavBtn = Array.from(navButtons).find(btn => btn.getAttribute('data-target') === 'quiz-tab');
+      if (quizNavBtn) {
+        quizNavBtn.click();
+      }
+    });
+
+    gridContainer.appendChild(card);
+  });
+
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+}
+
+// --- TAB 2: Spaced Repetition Study Engine ---
+function setupStudy() {
+  const filterSelect = document.getElementById('study-level-filter');
+  filterSelect.addEventListener('change', () => {
+    updateLessonFilters('study');
+    initStudySession();
+  });
+
+  const lessonFilterSelect = document.getElementById('study-lesson-filter');
+  lessonFilterSelect.addEventListener('change', () => {
+    updateSegmentFiltersVisibility('study');
+    initStudySession();
+  });
+
+  const segmentFilterSelect = document.getElementById('study-segment-filter');
+  if (segmentFilterSelect) {
+    segmentFilterSelect.addEventListener('change', () => {
+      initStudySession();
+    });
+  }
+
+  const studyModeSelect = document.getElementById('study-mode-select');
+  if (studyModeSelect) {
+    studyModeSelect.addEventListener('change', () => {
+      initStudySession();
+    });
+  }
+
+  const startSessionBtn = document.getElementById('study-start-session-btn');
+  if (startSessionBtn) {
+    startSessionBtn.addEventListener('click', startActiveStudySession);
+  }
+
+  // Card Flip trigger
+  const flashcard = document.getElementById('flashcard');
+  flashcard.addEventListener('click', (e) => {
+    // Avoid double flipping when clicking button inside card
+    if (e.target.closest('button') || e.target.closest('.btn-voice-sm') || e.target.closest('input')) return;
+    
+    // In dictation mode, cannot flip by just clicking the front face (must submit or press enter)
+    const studyMode = document.getElementById('study-mode-select').value;
+    if (studyMode === 'dictation' && !flashcard.classList.contains('flipped')) {
+      return;
+    }
+    
+    flashcard.classList.toggle('flipped');
+
+    // 뜻 먼저 보기(kor-first) 모드일 경우 뒤집어서 영어 단어가 보일 때 발음을 자동 재생해줌
+    if (flashcard.classList.contains('flipped') && studyMode === 'kor-first') {
+      const currentCard = studySession.words[studySession.currentIndex];
+      if (currentCard) speakWord(currentCard.word);
+    }
+  });
+
+  // Pronunciation speaker actions
+  document.getElementById('card-speak-btn').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const currentCard = studySession.words[studySession.currentIndex];
+    if (currentCard) speakWord(currentCard.word);
+  });
+
+  document.getElementById('card-speak-btn-back').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const currentCard = studySession.words[studySession.currentIndex];
+    if (currentCard) speakWord(currentCard.word);
+  });
+
+  // Dictation action triggers
+  const dictationSubmitBtn = document.getElementById('card-dictation-submit-btn');
+  if (dictationSubmitBtn) {
+    dictationSubmitBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      submitDictation();
+    });
+  }
+
+  const dictationSpeakBtn = document.getElementById('card-dictation-speak-btn');
+  if (dictationSpeakBtn) {
+    dictationSpeakBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const currentCard = studySession.words[studySession.currentIndex];
+      if (currentCard) speakWord(currentCard.word);
+    });
+  }
+
+  // Remembered / Forgot Evaluation handlers
+  document.getElementById('study-btn-forgot').addEventListener('click', () => {
+    evaluateCurrentWord(false);
+  });
+
+  document.getElementById('study-btn-remembered').addEventListener('click', () => {
+    evaluateCurrentWord(true);
+  });
+
+  // Study empty state actions
+  document.getElementById('study-reset-filter-btn').addEventListener('click', () => {
+    document.getElementById('study-level-filter').value = 'all';
+    updateLessonFilters('study');
+    initStudySession();
+  });
+
+  // Keyboard shortcut navigation helper
+  window.addEventListener('keydown', (e) => {
+    const studyTabActive = document.getElementById('study-tab').classList.contains('active');
+    const cardAreaVisible = document.getElementById('flashcard-area').style.display === 'flex';
+    if (!studyTabActive || studySession.words.length === 0 || !cardAreaVisible) return;
+
+    // Override controls when typing in the dictation input
+    if (document.activeElement && document.activeElement.id === 'card-dictation-input') {
+      if (e.code === 'Enter') {
+        e.preventDefault();
+        submitDictation();
+      }
+      return; // block other shortcuts like space, arrows
+    }
+
+    if (e.code === 'Space') {
+      e.preventDefault();
+      
+      const studyMode = document.getElementById('study-mode-select').value;
+      if (studyMode === 'dictation' && !flashcard.classList.contains('flipped')) {
+        return; // space key shouldn't flip front in dictation mode
+      }
+      
+      flashcard.classList.toggle('flipped');
+
+      if (flashcard.classList.contains('flipped') && studyMode === 'kor-first') {
+        const currentCard = studySession.words[studySession.currentIndex];
+        if (currentCard) speakWord(currentCard.word);
+      }
+    } else if (e.code === 'ArrowLeft') {
+      // Left key indicates Forgot
+      evaluateCurrentWord(false);
+    } else if (e.code === 'ArrowRight') {
+      // Right key indicates Remembered
+      evaluateCurrentWord(true);
+    } else if (e.code === 'KeyV') {
+      // Speak audio hotkey
+      const currentCard = studySession.words[studySession.currentIndex];
+      if (currentCard) speakWord(currentCard.word);
+    }
+  });
+}
+
+function initStudySession() {
+  const filterVal = document.getElementById('study-level-filter').value;
+  const lessonVal = document.getElementById('study-lesson-filter').value;
+  const now = Date.now();
+  
+  let filtered = [];
+
+  if (filterVal === 'due') {
+    filtered = words.filter(w => !w.nextReview || w.nextReview <= now);
+  } else if (filterVal === 'all') {
+    filtered = [...words];
+  } else {
+    // Filter by specific level and optionally lesson
+    if (lessonVal === 'all') {
+      filtered = words.filter(w => w.level === filterVal);
+    } else {
+      filtered = words.filter(w => w.level === filterVal && w.lesson === lessonVal);
+      // Ensure sorted index by ID
+      filtered.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' }));
+      
+      const segmentVal = document.getElementById('study-segment-filter').value;
+      if (segmentVal === '1') {
+        filtered = filtered.slice(0, 20);
+      } else if (segmentVal === '2') {
+        filtered = filtered.slice(20, 40);
+      } else if (segmentVal === '3') {
+        filtered = filtered.slice(40, 60);
+      }
+    }
+  }
+
+  // Shuffle flashcard deck configuration
+  studySession.words = filtered.sort(() => Math.random() - 0.5);
+  studySession.currentIndex = 0;
+
+  // Visual interface setup
+  const emptyState = document.getElementById('study-empty-state');
+  const cardArea = document.getElementById('flashcard-area');
+  const introState = document.getElementById('study-intro-state');
+  const flashcard = document.getElementById('flashcard');
+
+  flashcard.classList.remove('flipped');
+
+  if (studySession.words.length === 0) {
+    if (emptyState) emptyState.style.display = 'block';
+    if (cardArea) cardArea.style.display = 'none';
+    if (introState) introState.style.display = 'none';
+    updateStudyProgress(0, 0);
+  } else {
+    if (emptyState) emptyState.style.display = 'none';
+    if (cardArea) cardArea.style.display = 'none'; // 시작 버튼 누르기 전까지 가림
+    if (introState) introState.style.display = 'block'; // 시작 인트로 카드 보임
+
+    // Populate scope label
+    const scopeEl = document.getElementById('study-intro-scope');
+    if (scopeEl) {
+      if (filterVal === 'due') {
+        scopeEl.textContent = '오늘 복습할 단어만';
+      } else if (filterVal === 'all') {
+        scopeEl.textContent = '전체 보관 단어';
+      } else {
+        scopeEl.textContent = lessonVal === 'all' ? `${filterVal} (전체 레슨)` : `${filterVal} — ${lessonVal}`;
+      }
+    }
+
+    // Populate count label
+    const countEl = document.getElementById('study-intro-count');
+    if (countEl) {
+      countEl.textContent = `${studySession.words.length}개`;
+    }
+
+    updateStudyProgress(0, studySession.words.length);
+  }
+}
+
+function startActiveStudySession() {
+  const introState = document.getElementById('study-intro-state');
+  const cardArea = document.getElementById('flashcard-area');
+  
+  if (introState) introState.style.display = 'none';
+  if (cardArea) cardArea.style.display = 'flex';
+  
+  renderActiveFlashcard();
+}
+
+function renderActiveFlashcard() {
+  const card = studySession.words[studySession.currentIndex];
+  if (!card) return;
+
+  const flashcard = document.getElementById('flashcard');
+  flashcard.classList.remove('flipped');
+
+  // Fill word levels / boxes values
+  const levelText = card.lesson ? `${card.level} — ${card.lesson}`.toUpperCase() : card.level.toUpperCase();
+  const boxText = `Box ${card.box}`;
+
+  const studyMode = document.getElementById('study-mode-select').value;
+  const wordFrontEl = document.getElementById('card-front-word');
+  const speakBtnFront = document.getElementById('card-speak-btn');
+  const hintFrontEl = document.querySelector('.card-front .card-hint');
+
+  const dictationContainer = document.getElementById('card-front-dictation-container');
+  const dictationInput = document.getElementById('card-dictation-input');
+  const feedbackEl = document.getElementById('card-back-dictation-feedback');
+
+  // Front elements
+  document.getElementById('card-front-level').textContent = levelText;
+  document.getElementById('card-front-box').textContent = boxText;
+
+  if (studyMode === 'dictation') {
+    wordFrontEl.style.display = 'none';
+    if (speakBtnFront) speakBtnFront.style.display = 'none';
+    if (hintFrontEl) hintFrontEl.style.display = 'none';
+    if (dictationContainer) {
+      dictationContainer.style.display = 'block';
+      if (dictationInput) {
+        dictationInput.value = '';
+        setTimeout(() => dictationInput.focus(), 150);
+      }
+    }
+    if (feedbackEl) feedbackEl.style.display = 'none';
+    
+    // Auto pronounce
+    setTimeout(() => {
+      speakWord(card.word);
+    }, 150);
+  } else {
+    wordFrontEl.style.display = 'block';
+    if (hintFrontEl) hintFrontEl.style.display = 'block';
+    if (dictationContainer) dictationContainer.style.display = 'none';
+    if (feedbackEl) feedbackEl.style.display = 'none';
+
+    if (studyMode === 'kor-first') {
+      // 한글뜻 먼저 보기 모드: 앞면에 영어 대신 한글 뜻 노출
+      wordFrontEl.textContent = `[${card.pos}] ${card.definition}`;
+      wordFrontEl.style.fontSize = '32px'; // 긴 뜻이 들어갈 수 있으므로 폰트 크기 줄임
+      if (speakBtnFront) speakBtnFront.style.display = 'none'; // 앞면 발음 스포일러 방지
+      if (hintFrontEl) hintFrontEl.textContent = '카드를 탭하거나 스페이스바를 눌러 영어 단어를 확인하세요.';
+    } else {
+      // 영어단어 먼저 보기 모드: 앞면에 영어 단어 노출
+      wordFrontEl.textContent = card.word;
+      wordFrontEl.style.fontSize = '54px';
+      if (speakBtnFront) speakBtnFront.style.display = 'flex';
+      if (hintFrontEl) hintFrontEl.textContent = '카드를 탭하거나 스페이스바를 눌러 뜻을 확인하세요.';
+      
+      // Auto pronounce word on card flip load ONLY if we see the English word first (eng-first)
+      setTimeout(() => {
+        speakWord(card.word);
+      }, 100);
+    }
+  }
+
+  // Back elements
+  document.getElementById('card-back-level').textContent = levelText;
+  document.getElementById('card-back-box').textContent = boxText;
+  document.getElementById('card-back-word').textContent = card.word;
+  document.getElementById('card-back-pos').textContent = card.pos;
+  document.getElementById('card-back-meaning').textContent = card.definition;
+  document.getElementById('card-back-example').textContent = card.example ? `"${card.example}"` : "";
+  document.getElementById('card-back-example-translation').textContent = card.exampleTranslation ? `"${card.exampleTranslation}"` : "";
+
+  updateStudyProgress(studySession.currentIndex + 1, studySession.words.length);
+}
+
+function submitDictation() {
+  const currentCard = studySession.words[studySession.currentIndex];
+  if (!currentCard) return;
+
+  const inputEl = document.getElementById('card-dictation-input');
+  const userText = inputEl.value.trim().toLowerCase();
+  const correctText = currentCard.word.trim().toLowerCase();
+
+  const feedbackEl = document.getElementById('card-back-dictation-feedback');
+  feedbackEl.style.display = 'block';
+
+  if (userText === correctText) {
+    feedbackEl.innerHTML = `<span style="display:inline-flex; align-items:center; gap:4px;"><i data-lucide="check-circle" style="width:16px; height:16px;"></i> 정답입니다! 🎉</span> <span style="font-weight:normal; margin-left:8px; opacity:0.8;">(입력: ${inputEl.value})</span>`;
+    feedbackEl.style.background = 'rgba(16, 185, 129, 0.15)';
+    feedbackEl.style.color = '#10b981';
+    feedbackEl.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+  } else {
+    feedbackEl.innerHTML = `<span style="display:inline-flex; align-items:center; gap:4px;"><i data-lucide="x-circle" style="width:16px; height:16px;"></i> 오답입니다! ❌</span> <span style="font-weight:normal; margin-left:8px; opacity:0.8;">(입력: ${inputEl.value ? inputEl.value : '없음'} / 정답: ${currentCard.word})</span>`;
+    feedbackEl.style.background = 'rgba(239, 68, 68, 0.15)';
+    feedbackEl.style.color = '#ef4444';
+    feedbackEl.style.border = '1px solid rgba(239, 68, 68, 0.3)';
+  }
+
+  // Flip the card
+  const flashcard = document.getElementById('flashcard');
+  flashcard.classList.add('flipped');
+
+  // Re-create Lucide icons inside the feedback
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+
+  // Speak word
+  speakWord(currentCard.word);
+}
+
+function updateStudyProgress(current, total) {
+  const progressText = document.getElementById('study-progress-text');
+  const progressFill = document.getElementById('study-progress-fill');
+
+  progressText.textContent = `${current} / ${total} 단어`;
+  const percentage = total > 0 ? (current / total) * 100 : 0;
+  progressFill.style.width = `${percentage}%`;
+}
+
+function evaluateCurrentWord(remembered) {
+  const sessionWords = studySession.words;
+  const index = studySession.currentIndex;
+  if (sessionWords.length === 0 || index >= sessionWords.length) return;
+
+  const currentCard = sessionWords[index];
+  
+  // Find item in the core global state array
+  const targetWord = words.find(w => w.id === currentCard.id);
+  
+  if (targetWord) {
+    if (remembered) {
+      // Elevate word Box status
+      const oldBox = targetWord.box || 1;
+      const newBox = Math.min(oldBox + 1, 5);
+      targetWord.box = newBox;
+      targetWord.nextReview = Date.now() + LEITNER_INTERVALS[newBox];
+    } else {
+      // Demote back to Box 1
+      targetWord.box = 1;
+      targetWord.nextReview = Date.now() + LEITNER_INTERVALS[1];
+    }
+    
+    saveData();
+    incrementStreak();
+  }
+
+  // Slide to next card
+  studySession.currentIndex++;
+
+  if (studySession.currentIndex >= studySession.words.length) {
+    // Finished current set
+    setTimeout(() => {
+      document.getElementById('study-empty-state').style.display = 'block';
+      document.getElementById('flashcard-area').style.display = 'none';
+      updateStudyProgress(studySession.words.length, studySession.words.length);
+    }, 200);
+  } else {
+    // Reset flip layout, pause briefly for visual smoothness, then render
+    const flashcard = document.getElementById('flashcard');
+    const wasFlipped = flashcard.classList.contains('flipped');
+    
+    if (wasFlipped) {
+      flashcard.classList.remove('flipped');
+      setTimeout(() => {
+        renderActiveFlashcard();
+      }, 300); // Wait for turn-back animation to finish
+    } else {
+      renderActiveFlashcard();
+    }
+  }
+}
+
+function resetQuizState() {
+  clearInterval(quizSession.timerInterval);
+  document.getElementById('quiz-play-container').style.display = 'none';
+  document.getElementById('quiz-result-container').style.display = 'none';
+  document.getElementById('quiz-setup-container').style.display = 'block';
+  
+  const quizSeg = document.getElementById('quiz-segment-select');
+  if (quizSeg) quizSeg.value = 'all';
+  updateSegmentFiltersVisibility('quiz');
+}
+
+// --- TAB 3: Interactive Word Quiz Engine ---
+function setupQuiz() {
+  document.getElementById('quiz-start-btn').addEventListener('click', startQuiz);
+  
+  const levelSelect = document.getElementById('quiz-level-select');
+  if (levelSelect) {
+    levelSelect.addEventListener('change', () => {
+      updateLessonFilters('quiz');
+    });
+  }
+
+  const lessonSelect = document.getElementById('quiz-lesson-select');
+  if (lessonSelect) {
+    lessonSelect.addEventListener('change', () => {
+      updateSegmentFiltersVisibility('quiz');
+    });
+  }
+
+  document.getElementById('quiz-speak-btn').addEventListener('click', () => {
+    const q = quizSession.questions[quizSession.currentIndex];
+    if (q) speakWord(q.word);
+  });
+
+  // Action result handlers
+  document.getElementById('quiz-retry-btn').addEventListener('click', () => {
+    document.getElementById('quiz-result-container').style.display = 'none';
+    document.getElementById('quiz-setup-container').style.display = 'block';
+  });
+
+  document.getElementById('quiz-go-study-btn').addEventListener('click', () => {
+    // Set level filter to "due" and load Study
+    document.getElementById('study-level-filter').value = 'all';
+    updateLessonFilters('study');
+    document.getElementById('nav-study-btn').click();
+    document.getElementById('quiz-result-container').style.display = 'none';
+    document.getElementById('quiz-setup-container').style.display = 'block';
+  });
+
+  document.getElementById('spelling-submit-btn').addEventListener('click', checkSpellingAnswer);
+  document.getElementById('spelling-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      checkSpellingAnswer();
+    }
+  });
+
+  document.getElementById('quiz-next-btn').addEventListener('click', loadNextQuestion);
+}
+
+function startQuiz() {
+  const mode = document.getElementById('quiz-mode-select').value;
+  const level = document.getElementById('quiz-level-select').value;
+  const lesson = document.getElementById('quiz-lesson-select').value;
+  const count = parseInt(document.getElementById('quiz-count-select').value);
+
+  // Filter pool
+  let pool = [...words];
+  if (level !== 'all') {
+    if (lesson === 'all') {
+      pool = pool.filter(w => w.level === level);
+    } else {
+      pool = pool.filter(w => w.level === level && w.lesson === lesson);
+      // Ensure sorted index by ID
+      pool.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' }));
+      
+      const segmentVal = document.getElementById('quiz-segment-select').value;
+      if (segmentVal === '1') {
+        pool = pool.slice(0, 20);
+      } else if (segmentVal === '2') {
+        pool = pool.slice(20, 40);
+      } else if (segmentVal === '3') {
+        pool = pool.slice(40, 60);
+      }
+    }
+  }
+
+  if (pool.length < 4 && mode === 'choice') {
+    alert("퀴즈를 실행할 단어가 충분하지 않습니다. (최소 4개 이상 필요)\n새 단어를 추가하시거나 레벨 설정을 넓혀보세요.");
+    return;
+  }
+  if (pool.length < 1 && mode === 'spelling') {
+    alert("퀴즈를 실행할 단어가 존재하지 않습니다.");
+    return;
+  }
+
+  // Random selection
+  const selected = pool.sort(() => Math.random() - 0.5).slice(0, count);
+
+  // Build structure of questions
+  quizSession.mode = mode;
+  quizSession.questions = selected.map(wordItem => {
+    // Generate distractors if multiple choice mode
+    let options = [];
+    if (mode === 'choice') {
+      options.push(wordItem.definition);
+      
+      const distractors = words
+        .filter(w => w.id !== wordItem.id)
+        .map(w => w.definition);
+      
+      // Shuffle distractors and pick 3 unique definitions
+      const uniqueDistractors = [...new Set(distractors)].sort(() => Math.random() - 0.5);
+      
+      let countAdded = 0;
+      for (let i = 0; i < uniqueDistractors.length && countAdded < 3; i++) {
+        if (uniqueDistractors[i] !== wordItem.definition) {
+          options.push(uniqueDistractors[i]);
+          countAdded++;
+        }
+      }
+      
+      // Pad with dummy defaults if we don't have enough definitions
+      while (options.length < 4) {
+        options.push("임의의 뜻 단어 " + options.length);
+      }
+
+      // Shuffle complete choices options
+      options = options.sort(() => Math.random() - 0.5);
+    }
+
+    return {
+      word: wordItem.word,
+      correctAnswer: mode === 'choice' ? wordItem.definition : wordItem.word,
+      options: options,
+      level: wordItem.level,
+      rawItem: wordItem
+    };
+  });
+
+  quizSession.currentIndex = 0;
+  quizSession.score = 0;
+  quizSession.wrongWords = [];
+  quizSession.startTime = Date.now();
+
+  // Show active display card
+  document.getElementById('quiz-setup-container').style.display = 'none';
+  document.getElementById('quiz-play-container').style.display = 'block';
+  document.getElementById('quiz-result-container').style.display = 'none';
+
+  // Timer Initialization
+  clearInterval(quizSession.timerInterval);
+  quizSession.timer = 0;
+  document.getElementById('quiz-timer-text').textContent = '00:00';
+  quizSession.timerInterval = setInterval(() => {
+    quizSession.timer++;
+    const min = String(Math.floor(quizSession.timer / 60)).padStart(2, '0');
+    const sec = String(quizSession.timer % 60).padStart(2, '0');
+    document.getElementById('quiz-timer-text').textContent = `${min}:${sec}`;
+  }, 1000);
+
+  renderQuizQuestion();
+}
+
+function renderQuizQuestion() {
+  const currentIdx = quizSession.currentIndex;
+  const totalQuestions = quizSession.questions.length;
+  const q = quizSession.questions[currentIdx];
+
+  // Progress UI
+  document.getElementById('quiz-current-num').textContent = currentIdx + 1;
+  document.getElementById('quiz-total-num').textContent = totalQuestions;
+  
+  const progressPct = ((currentIdx) / totalQuestions) * 100;
+  document.getElementById('quiz-play-progress-fill').style.width = `${progressPct}%`;
+
+  // Clear previous choices and feedback details
+  document.getElementById('quiz-options-container').innerHTML = '';
+  document.getElementById('quiz-spelling-container').style.display = 'none';
+  document.getElementById('quiz-feedback-banner').style.display = 'none';
+  document.getElementById('quiz-next-btn').style.display = 'none';
+  
+  // Reset spelling input
+  const spellingInput = document.getElementById('spelling-input');
+  spellingInput.value = '';
+  spellingInput.disabled = false;
+  document.getElementById('spelling-submit-btn').disabled = false;
+
+  // Level Badge
+  const levelBadge = document.getElementById('quiz-question-level');
+  levelBadge.textContent = q.lesson ? `${q.level} — ${q.lesson}`.toUpperCase() : q.level.toUpperCase();
+
+  // Set prompt directions
+  const questionWord = document.getElementById('quiz-question-word');
+  const questionHintText = document.getElementById('quiz-question-hint');
+
+  if (quizSession.mode === 'choice') {
+    // Show word, choose translation
+    questionWord.style.visibility = 'visible';
+    questionWord.textContent = q.word;
+    questionHintText.textContent = "이 단어의 알맞은 한글 뜻을 선택하세요.";
+    
+    document.getElementById('quiz-options-container').style.display = 'grid';
+    
+    // Distribute multiple choice answer cards
+    q.options.forEach((optText) => {
+      const btn = document.createElement('button');
+      btn.className = 'quiz-opt-btn';
+      btn.innerHTML = `<span>${optText}</span>`;
+      btn.addEventListener('click', () => selectChoiceOption(btn, optText));
+      document.getElementById('quiz-options-container').appendChild(btn);
+    });
+
+    speakWord(q.word);
+  } else {
+    // Spelling input mode: hide spelling word, show translation, listen sound
+    questionWord.style.visibility = 'hidden';
+    questionWord.textContent = '???';
+    questionHintText.textContent = "원어민 발음을 듣고 스펠링을 입력하세요.";
+    
+    document.getElementById('quiz-options-container').style.display = 'none';
+    document.getElementById('quiz-spelling-container').style.display = 'block';
+    document.getElementById('spelling-meaning-prompt').textContent = `뜻: ${q.rawItem.definition} (${q.rawItem.pos})`;
+    
+    // Focus spelling box automatically
+    setTimeout(() => spellingInput.focus(), 100);
+    speakWord(q.word);
+  }
+}
+
+function selectChoiceOption(selectedBtn, selectedText) {
+  const q = quizSession.questions[quizSession.currentIndex];
+  const optionButtons = document.querySelectorAll('.quiz-opt-btn');
+
+  // Disable further choice clicks
+  optionButtons.forEach(btn => btn.disabled = true);
+
+  const isCorrect = (selectedText === q.correctAnswer);
+  
+  if (isCorrect) {
+    quizSession.score++;
+    selectedBtn.classList.add('correct');
+    showQuizFeedback(true, "정답입니다!", "완벽해요, 계속 나아갑시다!");
+  } else {
+    selectedBtn.classList.add('incorrect');
+    quizSession.wrongWords.push(q.rawItem);
+
+    // Show correct option button glow
+    optionButtons.forEach(btn => {
+      if (btn.querySelector('span').textContent === q.correctAnswer) {
+        btn.classList.add('correct');
+      }
+    });
+    showQuizFeedback(false, "오답입니다", `정답은 "${q.correctAnswer}" 입니다.`);
+  }
+
+  document.getElementById('quiz-next-btn').style.display = 'inline-flex';
+}
+
+function checkSpellingAnswer() {
+  const userInput = document.getElementById('spelling-input').value.trim().toLowerCase();
+  if (!userInput) return;
+
+  const q = quizSession.questions[quizSession.currentIndex];
+  const isCorrect = (userInput === q.word.toLowerCase());
+
+  document.getElementById('spelling-input').disabled = true;
+  document.getElementById('spelling-submit-btn').disabled = true;
+
+  // Reveal correct answer spelling
+  const questionWord = document.getElementById('quiz-question-word');
+  questionWord.textContent = q.word;
+  questionWord.style.visibility = 'visible';
+
+  if (isCorrect) {
+    quizSession.score++;
+    showQuizFeedback(true, "정답입니다!", "정확한 철자입니다!");
+  } else {
+    quizSession.wrongWords.push(q.rawItem);
+    showQuizFeedback(false, "오답입니다", `정답은 "${q.word}" 입니다.`);
+  }
+
+  document.getElementById('quiz-next-btn').style.display = 'inline-flex';
+}
+
+function showQuizFeedback(correct, title, desc) {
+  const banner = document.getElementById('quiz-feedback-banner');
+  const iconBox = document.getElementById('feedback-icon-box');
+  
+  iconBox.className = 'feedback-icon-box ' + (correct ? 'correct' : 'incorrect');
+  iconBox.innerHTML = correct ? '<i data-lucide="check"></i>' : '<i data-lucide="x"></i>';
+  
+  document.getElementById('feedback-title').textContent = title;
+  document.getElementById('feedback-desc').textContent = desc;
+
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+
+  banner.style.display = 'flex';
+}
+
+function loadNextQuestion() {
+  quizSession.currentIndex++;
+
+  if (quizSession.currentIndex >= quizSession.questions.length) {
+    finishQuiz();
+  } else {
+    renderQuizQuestion();
+  }
+}
+
+function finishQuiz() {
+  clearInterval(quizSession.timerInterval);
+  
+  const playContainer = document.getElementById('quiz-play-container');
+  const resultContainer = document.getElementById('quiz-result-container');
+
+  playContainer.style.display = 'none';
+  resultContainer.style.display = 'block';
+
+  // Render score calculations
+  const total = quizSession.questions.length;
+  const score = quizSession.score;
+  const pct = Math.round((score / total) * 100);
+
+  document.getElementById('result-score').textContent = `${score} / ${total}`;
+  document.getElementById('result-accuracy').textContent = `${pct}%`;
+
+  // Render quiz session elapsed time
+  const min = Math.floor(quizSession.timer / 60);
+  const sec = quizSession.timer % 60;
+  document.getElementById('result-time').textContent = min > 0 ? `${min}분 ${sec}초` : `${sec}초`;
+
+  // Render incorrect words list for review
+  const wrongSection = document.getElementById('result-wrong-section');
+  const wrongContainer = document.getElementById('result-wrong-words-container');
+  wrongContainer.innerHTML = '';
+
+  if (quizSession.wrongWords.length > 0) {
+    wrongSection.style.display = 'block';
+    
+    // Deduplicate wrong words list
+    const uniqueWrongs = Array.from(new Set(quizSession.wrongWords.map(w => w.id)))
+      .map(id => quizSession.wrongWords.find(w => w.id === id));
+
+    uniqueWrongs.forEach(item => {
+      const div = document.createElement('div');
+      div.className = 'wrong-word-item';
+      div.innerHTML = `
+        <span class="word">${item.word}</span>
+        <span class="meaning">${item.definition}</span>
+      `;
+      wrongContainer.appendChild(div);
+    });
+  } else {
+    wrongSection.style.display = 'none';
+  }
+}
+
+// --- TAB 4: Word Manager Dashboard ---
+function setupManage() {
+  renderManageTable();
+
+  // Search input listeners
+  document.getElementById('manage-search').addEventListener('input', renderManageTable);
+  
+  const levelFilter = document.getElementById('manage-level-filter');
+  if (levelFilter) {
+    levelFilter.addEventListener('change', () => {
+      updateLessonFilters('manage');
+      renderManageTable();
+    });
+  }
+
+  const lessonFilter = document.getElementById('manage-lesson-filter');
+  if (lessonFilter) {
+    lessonFilter.addEventListener('change', renderManageTable);
+  }
+
+  document.getElementById('manage-box-filter').addEventListener('change', renderManageTable);
+
+  const resetProgressBtn = document.getElementById('btn-reset-progress');
+  if (resetProgressBtn) {
+    resetProgressBtn.addEventListener('click', resetBoxes);
+  }
+}
+
+function resetBoxes() {
+  if (confirm("정말 모든 단어의 학습 진도(Box 단계)를 초기화하시겠습니까?\n모든 단어가 Box 1 단계로 돌아가며, 복습 일정이 리셋됩니다.")) {
+    words.forEach(w => {
+      w.box = 1;
+      w.nextReview = 0;
+    });
+    saveData();
+    renderManageTable();
+    updateDashboardStats();
+    alert("학습 진도가 성공적으로 초기화되었습니다.");
+  }
+}
+
+function renderManageTable() {
+  const searchQuery = document.getElementById('manage-search').value.toLowerCase().trim();
+  const levelFilter = document.getElementById('manage-level-filter').value;
+  const lessonFilter = document.getElementById('manage-lesson-filter').value;
+  const boxFilter = document.getElementById('manage-box-filter').value;
+
+  // Filter global states
+  let tableData = words.filter(w => {
+    // Search matching
+    const searchMatch = !searchQuery || 
+                        w.word.toLowerCase().includes(searchQuery) ||
+                        w.definition.includes(searchQuery) ||
+                        w.pos.toLowerCase().includes(searchQuery);
+    
+    // Level matching
+    const levelMatch = (levelFilter === 'all' || w.level === levelFilter);
+    
+    // Lesson matching
+    const lessonMatch = (levelFilter === 'all' || lessonFilter === 'all' || w.lesson === lessonFilter);
+    
+    // Box matching
+    const boxMatch = (boxFilter === 'all' || String(w.box) === boxFilter);
+
+    return searchMatch && levelMatch && lessonMatch && boxMatch;
+  });
+
+  const tbody = document.getElementById('words-table-body');
+  const emptyAlert = document.getElementById('table-empty-state');
+  
+  tbody.innerHTML = '';
+
+  if (tableData.length === 0) {
+    emptyAlert.style.display = 'block';
+  } else {
+    emptyAlert.style.display = 'none';
+
+    tableData.forEach(item => {
+      const tr = document.createElement('tr');
+      
+      // Calculate next review text
+      let reviewText = "즉시 복습";
+      if (item.nextReview && item.nextReview > Date.now()) {
+        const diffMs = item.nextReview - Date.now();
+        const diffHours = Math.ceil(diffMs / (60 * 60 * 1000));
+        if (diffHours >= 24) {
+          reviewText = `${Math.ceil(diffHours / 24)}일 후`;
+        } else {
+          reviewText = `${diffHours}시간 후`;
+        }
+      }
+
+      const boxClass = item.box === 5 ? 'box-5-badge' : '';
+      const lessonDetail = item.lesson ? `<br><small style="color: var(--text-secondary);">${item.lesson}</small>` : '';
+
+      tr.innerHTML = `
+        <td class="word-cell">${item.word}</td>
+        <td class="pos-cell">${item.pos}</td>
+        <td class="meaning-cell">${item.definition}</td>
+        <td><span class="badge level-badge">${item.level.toUpperCase()}</span>${lessonDetail}</td>
+        <td class="box-cell"><span class="${boxClass}">Box ${item.box}</span></td>
+        <td class="date-cell">${reviewText}</td>
+        <td>
+          <div class="table-action-btns">
+            <button class="btn-icon btn-voice-sm" onclick="window.speakWord('${item.word}')" title="발음 듣기">
+              <i data-lucide="volume-2"></i>
+            </button>
+            <button class="btn-icon" onclick="window.editWord('${item.id}')" title="수정">
+              <i data-lucide="edit-3"></i>
+            </button>
+            <button class="btn-icon btn-icon-danger" onclick="window.deleteWord('${item.id}')" title="삭제">
+              <i data-lucide="trash-2"></i>
+            </button>
+          </div>
+        </td>
+      `;
+      tbody.appendChild(tr);
+    });
+  }
+
+  // Create/update Lucide icons for table
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+}
+
+// Attach functions to window object so inline onclick attributes can execute
+window.speakWord = speakWord;
+
+window.editWord = function(id) {
+  const target = words.find(w => w.id === id);
+  if (target) {
+    openWordModal(target);
+  }
+};
+
+window.deleteWord = function(id) {
+  if (confirm("이 단어를 정말 삭제하시겠습니까?")) {
+    words = words.filter(w => w.id !== id);
+    saveData();
+    renderManageTable();
+  }
+};
+
+// --- Modal Add / Edit Controller ---
+function setupModals() {
+  const modal = document.getElementById('word-modal');
+  const closeBtn = document.getElementById('modal-close-btn');
+  const cancelBtn = document.getElementById('modal-cancel-btn');
+  const form = document.getElementById('word-form');
+
+  const closeModal = () => {
+    modal.classList.remove('active');
+    form.reset();
+  };
+
+  closeBtn.addEventListener('click', closeModal);
+  cancelBtn.addEventListener('click', closeModal);
+
+  // Close overlay on background click
+  modal.addEventListener('click', (e) => {
+    if (e.target === modal) {
+      closeModal();
+    }
+  });
+
+  // Modal submit actions
+  form.addEventListener('submit', (e) => {
+    e.preventDefault();
+
+    const id = document.getElementById('edit-word-id').value;
+    const wordVal = document.getElementById('form-word').value.trim();
+    const posVal = document.getElementById('form-pos').value.trim();
+    const defVal = document.getElementById('form-definition').value.trim();
+    const levelVal = document.getElementById('form-level').value.trim();
+    const lessonVal = document.getElementById('form-lesson').value.trim();
+    const exampleVal = document.getElementById('form-example').value.trim();
+    const transVal = document.getElementById('form-example-trans').value.trim();
+
+    // Check for duplicate words in the same level and lesson
+    const isDuplicate = words.some(w => 
+      w.id !== id && 
+      w.word.toLowerCase() === wordVal.toLowerCase() &&
+      w.level.toLowerCase() === levelVal.toLowerCase() &&
+      w.lesson.toLowerCase() === lessonVal.toLowerCase()
+    );
+
+    if (isDuplicate) {
+      alert(`이미 ${levelVal} 레벨의 ${lessonVal} 레슨에 "${wordVal}" 단어가 등록되어 있습니다.`);
+      return;
+    }
+
+    if (id) {
+      // Edit mode
+      const idx = words.findIndex(w => w.id === id);
+      if (idx !== -1) {
+        words[idx] = {
+          ...words[idx],
+          word: wordVal,
+          pos: posVal,
+          definition: defVal,
+          level: levelVal,
+          lesson: lessonVal,
+          example: exampleVal,
+          exampleTranslation: transVal
+        };
+      }
+    } else {
+      // Add Mode
+      const newWord = {
+        id: 'user_' + Date.now(),
+        word: wordVal,
+        pos: posVal,
+        definition: defVal,
+        level: levelVal,
+        lesson: lessonVal,
+        example: exampleVal,
+        exampleTranslation: transVal,
+        box: 1,
+        nextReview: 0
+      };
+      words.unshift(newWord); // add to top
+    }
+
+    saveData();
+    closeModal();
+    renderManageTable();
+  });
+}
+
+function openWordModal(editItem = null) {
+  const modal = document.getElementById('word-modal');
+  const title = document.getElementById('modal-title');
+  const submitBtn = document.getElementById('modal-submit-btn');
+
+  if (editItem) {
+    // Setup for editing
+    title.textContent = '영어 단어 수정';
+    submitBtn.textContent = '수정 완료';
+    
+    document.getElementById('edit-word-id').value = editItem.id;
+    document.getElementById('form-word').value = editItem.word;
+    document.getElementById('form-pos').value = editItem.pos;
+    document.getElementById('form-definition').value = editItem.definition;
+    document.getElementById('form-level').value = editItem.level;
+    document.getElementById('form-lesson').value = editItem.lesson || '';
+    document.getElementById('form-example').value = editItem.example || '';
+    document.getElementById('form-example-trans').value = editItem.exampleTranslation || '';
+  } else {
+    // Setup for adding new
+    title.textContent = '새로운 영어 단어 추가';
+    submitBtn.textContent = '저장하기';
+    
+    document.getElementById('edit-word-id').value = '';
+    document.getElementById('word-form').reset();
+  }
+
+  modal.classList.add('active');
+}
+
+// --- TAB: Dictation Menu (받아쓰기 불러주기) Logic ---
+function setupDictation() {
+  const levelSelect = document.getElementById('dictation-level-filter');
+  if (levelSelect) {
+    levelSelect.addEventListener('change', () => {
+      updateLessonFilters('dictation');
+    });
+  }
+
+  const lessonSelect = document.getElementById('dictation-lesson-filter');
+  if (lessonSelect) {
+    lessonSelect.addEventListener('change', () => {
+      updateSegmentFiltersVisibility('dictation');
+    });
+  }
+
+  const startBtn = document.getElementById('dictation-start-btn');
+  if (startBtn) {
+    startBtn.addEventListener('click', startDictation);
+  }
+
+  const nextBtn = document.getElementById('dictation-next-btn');
+  if (nextBtn) {
+    nextBtn.addEventListener('click', () => {
+      dictationSession.currentIndex++;
+      if (dictationSession.currentIndex < dictationSession.prompts.length) {
+        renderDictationPrompt();
+      } else {
+        showDictationResults();
+      }
+    });
+  }
+
+  const showResultsBtn = document.getElementById('dictation-show-results-btn');
+  if (showResultsBtn) {
+    showResultsBtn.addEventListener('click', showDictationResults);
+  }
+
+  const replayBtn = document.getElementById('dictation-replay-btn');
+  if (replayBtn) {
+    replayBtn.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const currentPrompt = dictationSession.prompts[dictationSession.currentIndex];
+      if (currentPrompt) {
+        speakWord(currentPrompt.word.word);
+      }
+    });
+  }
+
+  const retryBtn = document.getElementById('dictation-retry-btn');
+  if (retryBtn) {
+    retryBtn.addEventListener('click', () => {
+      resetDictationState();
+    });
+  }
+
+  const dashboardBtn = document.getElementById('dictation-dashboard-btn');
+  if (dashboardBtn) {
+    dashboardBtn.addEventListener('click', () => {
+      const dashboardNavBtn = Array.from(document.querySelectorAll('.nav-btn')).find(btn => btn.getAttribute('data-target') === 'dashboard-tab');
+      if (dashboardNavBtn) {
+        dashboardNavBtn.click();
+      }
+    });
+  }
+}
+
+function resetDictationState() {
+  const setupContainer = document.getElementById('dictation-setup-container');
+  const playContainer = document.getElementById('dictation-play-container');
+  const resultContainer = document.getElementById('dictation-result-container');
+
+  if (setupContainer) setupContainer.style.display = 'block';
+  if (playContainer) playContainer.style.display = 'none';
+  if (resultContainer) resultContainer.style.display = 'none';
+
+  dictationSession.words = [];
+  dictationSession.currentIndex = 0;
+  dictationSession.prompts = [];
+
+  const dictationSeg = document.getElementById('dictation-segment-filter');
+  if (dictationSeg) dictationSeg.value = 'all';
+  updateSegmentFiltersVisibility('dictation');
+}
+
+function startDictation() {
+  const levelVal = document.getElementById('dictation-level-filter').value;
+  const lessonVal = document.getElementById('dictation-lesson-filter').value;
+  const modeVal = document.getElementById('dictation-mode-select').value;
+
+  let filtered = [];
+  if (levelVal === 'all') {
+    filtered = [...words];
+  } else {
+    if (lessonVal === 'all') {
+      filtered = words.filter(w => w.level === levelVal);
+    } else {
+      filtered = words.filter(w => w.level === levelVal && w.lesson === lessonVal);
+      // Ensure sorted index by ID
+      filtered.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' }));
+      
+      const segmentVal = document.getElementById('dictation-segment-filter').value;
+      if (segmentVal === '1') {
+        filtered = filtered.slice(0, 20);
+      } else if (segmentVal === '2') {
+        filtered = filtered.slice(20, 40);
+      } else if (segmentVal === '3') {
+        filtered = filtered.slice(40, 60);
+      }
+    }
+  }
+
+  if (filtered.length === 0) {
+    alert("선택한 범위에 해당하는 단어가 없습니다.");
+    return;
+  }
+
+  // Shuffle dictation questions
+  filtered = filtered.sort(() => Math.random() - 0.5);
+
+  const countVal = document.getElementById('dictation-count-select').value;
+  if (countVal !== 'all') {
+    const limit = parseInt(countVal);
+    filtered = filtered.slice(0, limit);
+  }
+
+  dictationSession.words = filtered;
+  dictationSession.currentIndex = 0;
+  dictationSession.mode = modeVal;
+  dictationSession.prompts = [];
+
+  // Generate prompts
+  filtered.forEach(w => {
+    let type = 'audio'; // default
+    if (modeVal === 'audio-only') {
+      type = 'audio';
+    } else if (modeVal === 'text-only') {
+      type = 'text';
+    } else if (modeVal === 'mixed') {
+      type = Math.random() < 0.5 ? 'audio' : 'text';
+    }
+
+    const promptText = w.word; // Always show English word when type is text
+    dictationSession.prompts.push({
+      word: w,
+      type: type,
+      promptText: promptText
+    });
+  });
+
+  // Setup badge scope text
+  const badgeEl = document.getElementById('dictation-scope-badge');
+  if (badgeEl) {
+    if (levelVal === 'all') {
+      badgeEl.textContent = '전체 보관 단어';
+    } else {
+      badgeEl.textContent = lessonVal === 'all' ? `${levelVal} (전체 레슨)` : `${levelVal} — ${lessonVal}`;
+    }
+  }
+
+  // Hide settings, show play area
+  document.getElementById('dictation-setup-container').style.display = 'none';
+  document.getElementById('dictation-play-container').style.display = 'block';
+  document.getElementById('dictation-result-container').style.display = 'none';
+
+  renderDictationPrompt();
+}
+
+function renderDictationPrompt() {
+  const currentPrompt = dictationSession.prompts[dictationSession.currentIndex];
+  if (!currentPrompt) return;
+
+  const total = dictationSession.prompts.length;
+  const currentNum = dictationSession.currentIndex + 1;
+
+  document.getElementById('dictation-progress-text').textContent = `${currentNum} / ${total} 단어`;
+  
+  const hintTextEl = document.getElementById('dictation-card-hint-text');
+  const promptTextEl = document.getElementById('dictation-card-prompt-text');
+  const replayBtn = document.getElementById('dictation-replay-btn');
+
+  if (currentPrompt.type === 'text') {
+    hintTextEl.textContent = '화면의 영어 단어를 보고 종이에 스펠링을 받아 적으세요.';
+    promptTextEl.textContent = currentPrompt.promptText;
+    promptTextEl.style.display = 'block';
+    if (replayBtn) replayBtn.style.display = 'none';
+  } else {
+    hintTextEl.textContent = '음성을 잘 듣고 종이에 영어 단어(스펠링)를 받아 적으세요.';
+    promptTextEl.style.display = 'none';
+    if (replayBtn) replayBtn.style.display = 'flex';
+    
+    // Auto speak
+    setTimeout(() => {
+      speakWord(currentPrompt.word.word);
+    }, 150);
+  }
+
+  // Make the next button say "정답 확인" on the last word
+  const nextBtn = document.getElementById('dictation-next-btn');
+  if (nextBtn) {
+    if (currentNum === total) {
+      nextBtn.innerHTML = `<span>정답 확인하기 (완료)</span> <i data-lucide="check-square"></i>`;
+    } else {
+      nextBtn.innerHTML = `<span>다음 단어</span> <i data-lucide="arrow-right"></i>`;
+    }
+    if (window.lucide) window.lucide.createIcons();
+  }
+}
+
+function showDictationResults() {
+  const setupContainer = document.getElementById('dictation-setup-container');
+  const playContainer = document.getElementById('dictation-play-container');
+  const resultContainer = document.getElementById('dictation-result-container');
+
+  setupContainer.style.display = 'none';
+  playContainer.style.display = 'none';
+  resultContainer.style.display = 'block';
+
+  const tbody = document.getElementById('dictation-answers-tbody');
+  tbody.innerHTML = '';
+
+  dictationSession.prompts.forEach((p, idx) => {
+    const tr = document.createElement('tr');
+    tr.style.borderBottom = '1px solid var(--glass-border)';
+    
+    // Highlight mixed formats
+    const isText = p.type === 'text';
+    const promptCellClass = isText ? 'color: var(--color-primary);' : 'color: #fff;';
+    const typeLabel = isText ? '[스펠링 보기]' : '[음성 듣기]';
+    const displayPrompt = isText ? p.promptText : '🔊 (음성 출제됨)';
+
+    tr.innerHTML = `
+      <td style="padding: 12px 16px; color: var(--text-secondary); font-weight: 500;">${idx + 1}</td>
+      <td style="padding: 12px 16px; font-weight: 600; ${promptCellClass}">${typeLabel} ${displayPrompt}</td>
+      <td style="padding: 12px 16px; font-family: var(--font-display); font-weight: 700; color: #fff; font-size: 15px;">${p.word.word}</td>
+      <td style="padding: 12px 16px; font-style: italic; color: var(--text-muted); font-size: 13px;">${p.word.pos}</td>
+      <td style="padding: 12px 16px; color: var(--text-secondary);">${p.word.definition}</td>
+    `;
+    tbody.appendChild(tr);
+  });
+
+  if (window.lucide) {
+    window.lucide.createIcons();
+  }
+}
