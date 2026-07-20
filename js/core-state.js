@@ -46,7 +46,6 @@ const LEITNER_INTERVALS = {
 // --- Initializing Application ---
 document.addEventListener('DOMContentLoaded', () => {
   loadData();
-  checkLoginState();
   setupNavigation();
   setupDashboard();
   setupStudy();
@@ -55,73 +54,12 @@ document.addEventListener('DOMContentLoaded', () => {
   setupManage();
   setupModals();
   updateStreakDisplay();
-
-  // Login form handler
-  const loginForm = document.getElementById('login-form');
-  if (loginForm) {
-    loginForm.addEventListener('submit', (e) => {
-      e.preventDefault();
-      const usernameInput = document.getElementById('login-username');
-      if (usernameInput) {
-        handleLogin(usernameInput.value.trim());
-      }
-    });
-  }
-
-  // Logout button handler
-  const logoutBtn = document.getElementById('btn-logout');
-  if (logoutBtn) {
-    logoutBtn.addEventListener('click', () => {
-      handleLogout();
-    });
-  }
   
   // Create initial Lucide icons
   if (window.lucide) {
     window.lucide.createIcons();
   }
 });
-
-function checkLoginState() {
-  const storedUser = localStorage.getItem('lingopop_user');
-  const loginScreen = document.getElementById('login-screen');
-  const appContainer = document.getElementById('app-container');
-  
-  if (storedUser) {
-    currentUser = storedUser;
-    if (loginScreen) loginScreen.style.display = 'none';
-    if (appContainer) appContainer.style.display = 'grid';
-    
-    // Update displayed username in sidebar and header
-    const nameEl = document.getElementById('user-display-name');
-    if (nameEl) nameEl.textContent = `${currentUser} 학생`;
-    
-    const greetingEl = document.getElementById('header-greeting');
-    if (greetingEl) greetingEl.textContent = `안녕하세요, ${currentUser} 학생! 👋`;
-  } else {
-    currentUser = null;
-    if (loginScreen) loginScreen.style.display = 'flex';
-    if (appContainer) appContainer.style.display = 'none';
-  }
-  
-  if (window.lucide) {
-    window.lucide.createIcons();
-  }
-}
-
-function handleLogin(username) {
-  if (!username) return;
-  localStorage.setItem('lingopop_user', username);
-  checkLoginState();
-  updateDashboardStats();
-}
-
-function handleLogout() {
-  if (confirm("정말 로그아웃 하시겠습니까?")) {
-    localStorage.removeItem('lingopop_user');
-    checkLoginState();
-  }
-}
 
 // --- LocalStorage & Data Management ---
 function loadData() {
