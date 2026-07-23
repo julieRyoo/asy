@@ -353,7 +353,7 @@ function updateSegmentFiltersVisibility(tabType) {
     const lessonVal = document.getElementById('study-lesson-filter').value;
     const segmentContainer = document.getElementById('study-segment-filter-container');
     if (segmentContainer) {
-      if (levelVal !== 'due' && levelVal !== 'all' && lessonVal !== 'all') {
+      if (levelVal !== 'due') {
         segmentContainer.style.display = 'flex';
       } else {
         segmentContainer.style.display = 'none';
