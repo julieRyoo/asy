@@ -3,7 +3,7 @@
  */
 
 // --- State Configurations ---
-const DB_VERSION = "a2_l05_l06_l07_v1";
+const DB_VERSION = "a2_l08_only_v1";
 let words = [];
 let streak = 0;
 let lastStudyDate = null;
