@@ -409,8 +409,9 @@
               <label for="dictation-mode-select">출제 모드</label>
               <select id="dictation-mode-select" class="select-input">
                 <option value="audio-only">영어 단어 듣기</option>
+                <option value="meaning-only">뜻 보기 (한글 뜻을 보고 영단어 적기)</option>
                 <option value="text-only">스펠링 보기</option>
-                <option value="mixed">섞어서 하기 (영어 단어 듣기 또는 스펠링 보기 임의 출제)</option>
+                <option value="mixed">섞어서 하기 (영어 단어 듣기, 뜻 보기, 스펠링 보기 임의 출제)</option>
               </select>
             </div>
 
@@ -452,13 +453,23 @@
             </button>
           </div>
 
-          <div class="quiz-actions" style="margin-top: 30px; display: flex; gap: 16px;">
-            <button class="btn btn-primary btn-lg" style="flex: 1;" id="dictation-next-btn">
+          <!-- Typing Input Field -->
+          <div class="form-group" style="margin: 0 auto 20px; width: 100%; max-width: 420px;">
+            <input type="text" id="dictation-input" class="select-input" style="width: 100%; text-align: center; font-size: 20px; padding: 12px 16px; border-radius: var(--radius-md); letter-spacing: 0.5px; box-sizing: border-box;" placeholder="스펠링을 입력하고 엔터를 치세요" autocomplete="off">
+          </div>
+
+          <!-- Immediate Feedback Area -->
+          <div id="dictation-feedback" style="display: none; margin: 0 auto 24px; max-width: 420px; padding: 14px; border-radius: var(--radius-md); font-weight: 600; text-align: center; font-size: 15px; box-sizing: border-box;">
+          </div>
+
+          <div class="quiz-actions" style="margin-top: 30px; display: flex; gap: 16px; max-width: 420px; margin-left: auto; margin-right: auto;">
+            <button class="btn btn-primary btn-lg" style="flex: 1;" id="dictation-check-btn">
+              <span>정답 확인</span>
+              <i data-lucide="check"></i>
+            </button>
+            <button class="btn btn-primary btn-lg" style="flex: 1; display: none;" id="dictation-next-btn">
               <span>다음 단어</span>
               <i data-lucide="arrow-right"></i>
-            </button>
-            <button class="btn btn-secondary btn-lg" style="width: auto; padding: 0 24px;" id="dictation-show-results-btn">
-              <span>정답 확인 (채점)</span>
             </button>
           </div>
         </div>
@@ -470,7 +481,7 @@
               <i data-lucide="check-square" style="width: 32px; height: 32px;"></i>
             </div>
             <h3>받아쓰기 정답표</h3>
-            <p>종이에 적은 단어들을 아래 정답표와 비교하여 채점해 보세요.</p>
+            <p>학습한 단어들의 채점 결과 및 정답 목록입니다.</p>
           </div>
 
           <div style="margin-top: 24px; max-height: 380px; overflow-x: auto; overflow-y: auto; border: 1px solid var(--glass-border); border-radius: var(--radius-md); background: rgba(255,255,255,0.01); -webkit-overflow-scrolling: touch;">
@@ -479,7 +490,9 @@
                 <tr style="background: rgba(255,255,255,0.03); border-bottom: 1px solid var(--glass-border);">
                   <th style="padding: 12px 16px; width: 60px; color: var(--text-muted); font-weight: 600;">번호</th>
                   <th style="padding: 12px 16px; color: var(--text-muted); font-weight: 600;">제시된 문제</th>
+                  <th style="padding: 12px 16px; color: var(--text-muted); font-weight: 600;">입력한 답</th>
                   <th style="padding: 12px 16px; color: var(--text-muted); font-weight: 600;">정답 (영단어)</th>
+                  <th style="padding: 12px 16px; color: var(--text-muted); font-weight: 600;">채점</th>
                   <th style="padding: 12px 16px; color: var(--text-muted); font-weight: 600;">품사</th>
                   <th style="padding: 12px 16px; color: var(--text-muted); font-weight: 600;">한글 뜻</th>
                 </tr>

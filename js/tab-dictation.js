@@ -22,6 +22,11 @@ function setupDictation() {
     startBtn.addEventListener('click', startDictation);
   }
 
+  const checkBtn = document.getElementById('dictation-check-btn');
+  if (checkBtn) {
+    checkBtn.addEventListener('click', checkDictationAnswer);
+  }
+
   const nextBtn = document.getElementById('dictation-next-btn');
   if (nextBtn) {
     nextBtn.addEventListener('click', () => {
@@ -30,6 +35,20 @@ function setupDictation() {
         renderDictationPrompt();
       } else {
         showDictationResults();
+      }
+    });
+  }
+
+  const inputField = document.getElementById('dictation-input');
+  if (inputField) {
+    inputField.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        const checkBtnVisible = document.getElementById('dictation-check-btn').style.display !== 'none';
+        if (checkBtnVisible) {
+          checkDictationAnswer();
+        } else {
+          document.getElementById('dictation-next-btn').click();
+        }
       }
     });
   }
@@ -64,6 +83,16 @@ function resetDictationState() {
   dictationSession.words = [];
   dictationSession.currentIndex = 0;
   dictationSession.prompts = [];
+
+  const dictationInput = document.getElementById('dictation-input');
+  if (dictationInput) {
+    dictationInput.value = '';
+    dictationInput.disabled = false;
+  }
+  const feedbackEl = document.getElementById('dictation-feedback');
+  if (feedbackEl) {
+    feedbackEl.style.display = 'none';
+  }
 
   const dictationSeg = document.getElementById('dictation-segment-filter');
   if (dictationSeg) dictationSeg.value = 'all';
@@ -121,17 +150,28 @@ function startDictation() {
     let type = 'audio'; // default
     if (modeVal === 'audio-only') {
       type = 'audio';
+    } else if (modeVal === 'meaning-only') {
+      type = 'meaning';
     } else if (modeVal === 'text-only') {
       type = 'text';
     } else if (modeVal === 'mixed') {
-      type = Math.random() < 0.5 ? 'audio' : 'text';
+      const rand = Math.random();
+      if (rand < 0.4) {
+        type = 'audio';
+      } else if (rand < 0.8) {
+        type = 'meaning';
+      } else {
+        type = 'text';
+      }
     }
 
     const promptText = w.word; // Always show English word when type is text
     dictationSession.prompts.push({
       word: w,
       type: type,
-      promptText: promptText
+      promptText: promptText,
+      userAnswer: '',
+      isCorrect: false
     });
   });
 
@@ -165,14 +205,30 @@ function renderDictationPrompt() {
   const hintTextEl = document.getElementById('dictation-card-hint-text');
   const promptTextEl = document.getElementById('dictation-card-prompt-text');
   const replayBtn = document.getElementById('dictation-replay-btn');
+  const dictationInput = document.getElementById('dictation-input');
+  const feedbackEl = document.getElementById('dictation-feedback');
+  const checkBtn = document.getElementById('dictation-check-btn');
+  const nextBtn = document.getElementById('dictation-next-btn');
+
+  // Reset controls
+  dictationInput.value = '';
+  dictationInput.disabled = false;
+  feedbackEl.style.display = 'none';
+  checkBtn.style.display = 'inline-flex';
+  nextBtn.style.display = 'none';
 
   if (currentPrompt.type === 'text') {
-    hintTextEl.textContent = '화면의 영어 단어를 보고 종이에 스펠링을 받아 적으세요.';
-    promptTextEl.textContent = currentPrompt.promptText;
+    hintTextEl.textContent = '화면의 영어 단어를 보고 아래 입력창에 스펠링을 입력하세요.';
+    promptTextEl.textContent = currentPrompt.word.word;
     promptTextEl.style.display = 'block';
     if (replayBtn) replayBtn.style.display = 'none';
-  } else {
-    hintTextEl.textContent = '음성을 잘 듣고 종이에 영어 단어(스펠링)를 받아 적으세요.';
+  } else if (currentPrompt.type === 'meaning') {
+    hintTextEl.textContent = '한글 뜻을 보고 아래 입력창에 해당하는 영어 스펠링을 입력하세요.';
+    promptTextEl.textContent = `[${currentPrompt.word.pos}] ${currentPrompt.word.definition}`;
+    promptTextEl.style.display = 'block';
+    if (replayBtn) replayBtn.style.display = 'none';
+  } else { // 'audio'
+    hintTextEl.textContent = '원어민 발음을 잘 듣고 아래 입력창에 영어 단어(스펠링)를 입력하세요.';
     promptTextEl.style.display = 'none';
     if (replayBtn) replayBtn.style.display = 'flex';
     
@@ -182,16 +238,60 @@ function renderDictationPrompt() {
     }, 150);
   }
 
-  // Make the next button say "정답 확인" on the last word
-  const nextBtn = document.getElementById('dictation-next-btn');
+  // Make the next button say "결과 확인하기" on the last word
   if (nextBtn) {
     if (currentNum === total) {
-      nextBtn.innerHTML = `<span>정답 확인하기 (완료)</span> <i data-lucide="check-square"></i>`;
+      nextBtn.innerHTML = `<span>결과 확인하기 (완료)</span> <i data-lucide="check-square"></i>`;
     } else {
       nextBtn.innerHTML = `<span>다음 단어</span> <i data-lucide="arrow-right"></i>`;
     }
     if (window.lucide) window.lucide.createIcons();
   }
+
+  setTimeout(() => {
+    dictationInput.focus();
+  }, 120);
+}
+
+function checkDictationAnswer() {
+  const currentPrompt = dictationSession.prompts[dictationSession.currentIndex];
+  if (!currentPrompt) return;
+
+  const dictationInput = document.getElementById('dictation-input');
+  const feedbackEl = document.getElementById('dictation-feedback');
+  const checkBtn = document.getElementById('dictation-check-btn');
+  const nextBtn = document.getElementById('dictation-next-btn');
+
+  const userVal = dictationInput.value.trim().toLowerCase();
+  const correctVal = currentPrompt.word.word.trim().toLowerCase();
+
+  // Save student's answer
+  currentPrompt.userAnswer = dictationInput.value.trim();
+  currentPrompt.isCorrect = (userVal === correctVal);
+
+  dictationInput.disabled = true;
+  checkBtn.style.display = 'none';
+  nextBtn.style.display = 'inline-flex';
+
+  feedbackEl.style.display = 'block';
+  if (currentPrompt.isCorrect) {
+    feedbackEl.innerHTML = `<span style="display:inline-flex; align-items:center; gap:6px;"><i data-lucide="check-circle" style="width:18px; height:18px;"></i> 정답입니다! 🎉</span>`;
+    feedbackEl.style.background = 'rgba(16, 185, 129, 0.12)';
+    feedbackEl.style.color = '#10b981';
+    feedbackEl.style.border = '1px solid rgba(16, 185, 129, 0.25)';
+  } else {
+    feedbackEl.innerHTML = `<span style="display:inline-flex; align-items:center; gap:6px; margin-bottom: 4px;"><i data-lucide="x-circle" style="width:18px; height:18px;"></i> 오답입니다.</span><br><span style="font-weight: 500; font-size:13px; opacity:0.9;">정답: <strong style="font-size:15px; color:#fff; font-family:var(--font-display);">${currentPrompt.word.word}</strong> (입력: ${dictationInput.value ? dictationInput.value : '없음'})</span>`;
+    feedbackEl.style.background = 'rgba(239, 68, 68, 0.12)';
+    feedbackEl.style.color = '#ef4444';
+    feedbackEl.style.border = '1px solid rgba(239, 68, 68, 0.25)';
+  }
+
+  // Play pronunciation
+  speakWord(currentPrompt.word.word);
+
+  if (window.lucide) window.lucide.createIcons();
+  
+  nextBtn.focus();
 }
 
 function showDictationResults() {
@@ -211,15 +311,35 @@ function showDictationResults() {
     tr.style.borderBottom = '1px solid var(--glass-border)';
     
     // Highlight mixed formats
-    const isText = p.type === 'text';
-    const promptCellClass = isText ? 'color: var(--color-primary);' : 'color: #fff;';
-    const typeLabel = isText ? '[스펠링 보기]' : '[음성 듣기]';
-    const displayPrompt = isText ? p.promptText : '🔊 (음성 출제됨)';
+    let typeLabel = '';
+    let displayPrompt = '';
+    let promptCellClass = 'color: #fff;';
+
+    if (p.type === 'text') {
+      typeLabel = '[스펠링 보기]';
+      displayPrompt = p.promptText;
+      promptCellClass = 'color: var(--color-primary);';
+    } else if (p.type === 'meaning') {
+      typeLabel = '[뜻 보기]';
+      displayPrompt = `[${p.word.pos}] ${p.word.definition}`;
+      promptCellClass = 'color: #3b82f6;';
+    } else { // 'audio'
+      typeLabel = '[음성 듣기]';
+      displayPrompt = '🔊 (음성 출제됨)';
+    }
+
+    const checkIcon = p.isCorrect 
+      ? `<span class="badge" style="background: rgba(16,185,129,0.15); color: #10b981; border: 1px solid rgba(16,185,129,0.3); padding: 4px 8px; border-radius: 4px; font-weight:bold;">O</span>` 
+      : `<span class="badge" style="background: rgba(239,68,68,0.15); color: #ef4444; border: 1px solid rgba(239,68,68,0.3); padding: 4px 8px; border-radius: 4px; font-weight:bold;">X</span>`;
+
+    const userAnsText = p.userAnswer ? p.userAnswer : '<span style="color: var(--text-muted); font-style:italic;">없음</span>';
 
     tr.innerHTML = `
       <td style="padding: 12px 16px; color: var(--text-secondary); font-weight: 500;">${idx + 1}</td>
       <td style="padding: 12px 16px; font-weight: 600; ${promptCellClass}">${typeLabel} ${displayPrompt}</td>
+      <td style="padding: 12px 16px; font-family: var(--font-display); font-weight: 500; color: var(--text-secondary);">${userAnsText}</td>
       <td style="padding: 12px 16px; font-family: var(--font-display); font-weight: 700; color: #fff; font-size: 15px;">${p.word.word}</td>
+      <td style="padding: 12px 16px; text-align: center;">${checkIcon}</td>
       <td style="padding: 12px 16px; font-style: italic; color: var(--text-muted); font-size: 13px;">${p.word.pos}</td>
       <td style="padding: 12px 16px; color: var(--text-secondary);">${p.word.definition}</td>
     `;
