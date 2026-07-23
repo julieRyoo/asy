@@ -321,6 +321,7 @@ function checkDictationAnswer() {
     feedbackEl.style.background = 'rgba(239, 68, 68, 0.12)';
     feedbackEl.style.color = '#ef4444';
     feedbackEl.style.border = '1px solid rgba(239, 68, 68, 0.25)';
+    addIncorrectWord(currentPrompt.word.id);
   }
 
   // Play pronunciation

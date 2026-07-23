@@ -9,7 +9,43 @@ function setupDashboard() {
       renderDashboardLessons();
     });
   }
+
+  const incorrectCard = document.getElementById('dash-incorrect-card');
+  if (incorrectCard) {
+    incorrectCard.addEventListener('click', () => {
+      if (!incorrectWordIds || incorrectWordIds.length === 0) {
+        alert('오답 노트에 등록된 단어가 없습니다! 퀴즈나 받아쓰기에서 틀린 단어가 생기면 여기에 자동으로 추가됩니다.');
+        return;
+      }
+      startIncorrectStudySession();
+    });
+  }
+
   updateDashboardStats();
+}
+
+function startIncorrectStudySession() {
+  const incorrectWords = words.filter(w => incorrectWordIds.includes(w.id));
+  if (incorrectWords.length === 0) return;
+  
+  studySession.words = JSON.parse(JSON.stringify(incorrectWords));
+  studySession.currentIndex = 0;
+  
+  const studyTabBtn = document.querySelector('[data-target="study-tab"]');
+  if (studyTabBtn) {
+    studyTabBtn.click();
+  }
+  
+  const filterPanel = document.querySelector('.study-header');
+  if (filterPanel) filterPanel.style.display = 'none';
+  
+  document.getElementById('study-intro-state').style.display = 'none';
+  document.getElementById('study-empty-state').style.display = 'none';
+  document.getElementById('flashcard-area').style.display = 'block';
+  
+  if (typeof renderCard === 'function') {
+    renderCard();
+  }
 }
 
 function updateDashboardStats() {
@@ -25,6 +61,51 @@ function updateDashboardStats() {
     } else {
       sidebarDueBadge.style.display = 'none';
     }
+  }
+
+  // 1. Update Circular Progress Ring
+  const remainingDue = due;
+  const completedCount = completedTodayWordIds ? completedTodayWordIds.length : 0;
+  const totalDueCount = remainingDue + completedCount;
+  const progressPct = totalDueCount > 0 ? Math.round((completedCount / totalDueCount) * 100) : 100;
+  
+  const percentageEl = document.getElementById('dash-progress-percentage');
+  const fractionEl = document.getElementById('dash-progress-fraction');
+  const ringFill = document.getElementById('dash-progress-ring-fill');
+  const ringIcon = document.getElementById('dash-progress-ring-icon');
+  
+  if (percentageEl) percentageEl.textContent = `${progressPct}%`;
+  if (fractionEl) fractionEl.textContent = `${completedCount} / ${totalDueCount} 단어 완료`;
+  if (ringFill) {
+    const offset = 175.92 - (progressPct / 100) * 175.92;
+    ringFill.style.strokeDashoffset = offset;
+  }
+  if (ringIcon) {
+    if (progressPct === 100 && totalDueCount > 0) {
+      ringIcon.className = 'lucide lucide-party-popper';
+      ringIcon.style.color = '#a855f7'; // purple accent
+    } else {
+      ringIcon.className = 'lucide lucide-check-circle';
+      ringIcon.style.color = 'var(--color-primary)';
+    }
+  }
+
+  // 2. Update Incorrect Words Count
+  const incorrectCountEl = document.getElementById('dash-incorrect-count');
+  if (incorrectCountEl) {
+    const incorrectLength = incorrectWordIds ? incorrectWordIds.length : 0;
+    incorrectCountEl.textContent = `${incorrectLength}개 단어`;
+  }
+
+  // 3. Update Leitner Box Distributions
+  const totalCount = words.length;
+  for (let boxNum = 1; boxNum <= 5; boxNum++) {
+    const boxWordsCount = words.filter(w => (w.box || 1) === boxNum).length;
+    const boxPct = totalCount > 0 ? Math.round((boxWordsCount / totalCount) * 100) : 0;
+    const fillEl = document.getElementById(`chart-fill-box${boxNum}`);
+    const countEl = document.getElementById(`chart-count-box${boxNum}`);
+    if (fillEl) fillEl.style.width = `${boxPct}%`;
+    if (countEl) countEl.textContent = `${boxWordsCount}개 (${boxPct}%)`;
   }
 
   // Populate level dropdown in dashboard

@@ -247,6 +247,7 @@ function selectChoiceOption(selectedBtn, selectedText) {
   } else {
     selectedBtn.classList.add('incorrect');
     quizSession.wrongWords.push(q.rawItem);
+    addIncorrectWord(q.rawItem.id);
 
     // Show correct option button glow
     optionButtons.forEach(btn => {
@@ -280,6 +281,7 @@ function checkSpellingAnswer() {
     showQuizFeedback(true, "정답입니다!", "정확한 철자입니다!");
   } else {
     quizSession.wrongWords.push(q.rawItem);
+    addIncorrectWord(q.rawItem.id);
     showQuizFeedback(false, "오답입니다", `정답은 "${q.word}" 입니다.`);
   }
 

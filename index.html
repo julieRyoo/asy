@@ -12,6 +12,8 @@
   <link rel="stylesheet" href="index.css">
   <!-- Lucide Icons -->
   <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Canvas Confetti for Achievements celebration -->
+  <script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.6.0/dist/confetti.browser.min.js"></script>
 </head>
 <body>
   <div class="app-container">
@@ -49,10 +51,18 @@
           <i data-lucide="folder-edit"></i>
           <span>단어장 관리</span>
         </button>
+        <button class="nav-btn" data-target="stats-tab">
+          <i data-lucide="bar-chart-3"></i>
+          <span>학습 리포트</span>
+        </button>
       </nav>
 
-      <div class="sidebar-footer">
-        <p class="copyright">&copy; 2026 LingoPop</p>
+      <div class="sidebar-footer" style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
+        <p class="copyright" style="margin: 0;">&copy; 2026 LingoPop</p>
+        <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; margin-top: 2px;">
+          <span style="color: var(--text-muted); font-weight: 500;">v1.0.0</span>
+          <span id="env-badge" class="badge" style="font-size: 9px; padding: 1px 5px; border-radius: 3px; font-weight: 700; display: none;"></span>
+        </div>
       </div>
     </aside>
 
@@ -75,6 +85,21 @@
           <select id="dash-level-select" class="select-input select-input-lg">
             <!-- Dynamic levels populated by JS -->
           </select>
+        </div>
+
+        <!-- Statistics Dashboard Grid (Dashboard version has ONLY Incorrect notebook shortcut) -->
+        <div class="dashboard-stats-grid" style="display: grid; grid-template-columns: 1fr; max-width: 320px; gap: 20px; margin-bottom: 30px;">
+          <!-- 1. Incorrect Words Notebook Shortcut Card -->
+          <div class="stat-card glass-panel hover-card" id="dash-incorrect-card" style="display: flex; align-items: center; justify-content: space-between; padding: 20px; border-radius: var(--radius-lg); cursor: pointer; transition: all 0.3s ease;">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <span style="font-size: 13px; color: var(--text-muted); font-weight: 500;">집중 복습 오답 노트</span>
+              <h4 id="dash-incorrect-count" style="font-family: var(--font-display); font-size: 26px; font-weight: 800; color: #ef4444; margin: 0; filter: drop-shadow(0 0 6px rgba(239,68,68,0.2));">0개 단어</h4>
+              <p style="font-size: 12px; color: var(--text-secondary); margin: 0; margin-top: 4px;">틀린 단어만 모아서 복습하기 &rarr;</p>
+            </div>
+            <div style="width: 50px; height: 50px; border-radius: var(--radius-md); background: rgba(239, 68, 68, 0.1); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(239, 68, 68, 0.2);">
+              <i data-lucide="book-open-check" style="color: #ef4444; width: 24px; height: 24px;"></i>
+            </div>
+          </div>
         </div>
 
         <div class="dashboard-section-title">
@@ -564,6 +589,93 @@
           </div>
         </div>
       </section>
+
+      <!-- TAB 5: Achievement / Stats Report -->
+      <section id="stats-tab" class="tab-content">
+        <div class="dashboard-section-title">
+          <h3>학습 달성도 리포트</h3>
+          <p>오늘의 학습 성과와 전체 단어 암기 단계를 직관적으로 모니터링합니다.</p>
+        </div>
+
+        <!-- Stats Grid (Progress & Streak) -->
+        <div class="dashboard-stats-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 20px; margin-bottom: 30px;">
+          <!-- 1. Progress Ring -->
+          <div class="stat-card glass-panel" style="display: flex; align-items: center; justify-content: space-between; padding: 20px; border-radius: var(--radius-lg); position: relative; overflow: hidden;">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <span style="font-size: 13px; color: var(--text-muted); font-weight: 500;">오늘 복습 달성률</span>
+              <h4 id="dash-progress-percentage" style="font-family: var(--font-display); font-size: 26px; font-weight: 800; color: var(--color-primary); margin: 0;">0%</h4>
+              <p id="dash-progress-fraction" style="font-size: 12px; color: var(--text-secondary); margin: 0; margin-top: 4px;">0 / 0 단어 완료</p>
+            </div>
+            <!-- Progress SVG Ring -->
+            <div style="position: relative; width: 70px; height: 70px; display: flex; align-items: center; justify-content: center;">
+              <svg width="70" height="70" style="transform: rotate(-90deg);">
+                <circle cx="35" cy="35" r="28" fill="none" stroke="rgba(255,255,255,0.05)" stroke-width="6"/>
+                <circle id="dash-progress-ring-fill" cx="35" cy="35" r="28" fill="none" stroke="var(--color-primary)" stroke-dasharray="175.9" stroke-dashoffset="175.9" stroke-width="6" stroke-linecap="round" style="transition: stroke-dashoffset 0.8s cubic-bezier(0.4, 0, 0.2, 1); filter: drop-shadow(0 0 4px var(--color-primary-glow));"/>
+              </svg>
+              <div style="position: absolute; display: flex; align-items: center; justify-content: center;">
+                <i data-lucide="check-circle" id="dash-progress-ring-icon" style="color: var(--color-primary); width: 22px; height: 22px;"></i>
+              </div>
+            </div>
+          </div>
+
+          <!-- 2. Streak Card -->
+          <div class="stat-card glass-panel" style="display: flex; align-items: center; justify-content: space-between; padding: 20px; border-radius: var(--radius-lg);">
+            <div style="display: flex; flex-direction: column; gap: 4px;">
+              <span style="font-size: 13px; color: var(--text-muted); font-weight: 500;">연속 학습 일수</span>
+              <h4 style="font-family: var(--font-display); font-size: 26px; font-weight: 800; color: #f59e0b; margin: 0; filter: drop-shadow(0 0 6px rgba(245,158,11,0.2));"><span id="streak-days">0</span>일 연속</h4>
+              <p id="dash-streak-subtext" style="font-size: 12px; color: var(--text-secondary); margin: 0; margin-top: 4px;">매일 공부하고 스트릭을 지키세요! 🔥</p>
+            </div>
+            <div style="width: 50px; height: 50px; border-radius: var(--radius-md); background: rgba(245, 158, 11, 0.1); display: flex; align-items: center; justify-content: center; border: 1px solid rgba(245, 158, 11, 0.2);">
+              <i data-lucide="flame" style="color: #f59e0b; width: 24px; height: 24px;"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- 3. Leitner Box Distribution Stats Card -->
+        <div class="glass-panel" style="padding: 24px; border-radius: var(--radius-lg); margin-bottom: 30px;">
+          <h4 style="font-family: var(--font-display); font-size: 15px; font-weight: 700; color: #fff; margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="bar-chart-3" style="color: var(--color-primary); width: 18px; height: 18px;"></i>
+            <span>암기 단계별 상자 분포 스탯</span>
+          </h4>
+          <div class="box-chart-container" style="display: flex; flex-direction: column; gap: 12px;">
+            <div class="chart-row" style="display: flex; align-items: center; gap: 12px; font-size: 13px;">
+              <span style="width: 100px; color: var(--text-secondary); font-weight: 600;">1단계 (미암기)</span>
+              <div style="flex: 1; height: 14px; background: rgba(255,255,255,0.03); border-radius: 7px; overflow: hidden; border: 1px solid var(--glass-border); position: relative;">
+                <div id="chart-fill-box1" style="height: 100%; width: 0%; background: linear-gradient(90deg, #ef4444, #f87171); border-radius: 7px; transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 0 10px rgba(239,68,68,0.2);"></div>
+              </div>
+              <span id="chart-count-box1" style="width: 45px; text-align: right; font-weight: 700; color: #fff;">0개</span>
+            </div>
+            <div class="chart-row" style="display: flex; align-items: center; gap: 12px; font-size: 13px;">
+              <span style="width: 100px; color: var(--text-secondary); font-weight: 600;">2단계 (학습중)</span>
+              <div style="flex: 1; height: 14px; background: rgba(255,255,255,0.03); border-radius: 7px; overflow: hidden; border: 1px solid var(--glass-border); position: relative;">
+                <div id="chart-fill-box2" style="height: 100%; width: 0%; background: linear-gradient(90deg, #f59e0b, #fbbf24); border-radius: 7px; transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 0 10px rgba(245,158,11,0.2);"></div>
+              </div>
+              <span id="chart-count-box2" style="width: 45px; text-align: right; font-weight: 700; color: #fff;">0개</span>
+            </div>
+            <div class="chart-row" style="display: flex; align-items: center; gap: 12px; font-size: 13px;">
+              <span style="width: 100px; color: var(--text-secondary); font-weight: 600;">3단계 (보통)</span>
+              <div style="flex: 1; height: 14px; background: rgba(255,255,255,0.03); border-radius: 7px; overflow: hidden; border: 1px solid var(--glass-border); position: relative;">
+                <div id="chart-fill-box3" style="height: 100%; width: 0%; background: linear-gradient(90deg, #3b82f6, #60a5fa); border-radius: 7px; transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 0 10px rgba(59,130,246,0.2);"></div>
+              </div>
+              <span id="chart-count-box3" style="width: 45px; text-align: right; font-weight: 700; color: #fff;">0개</span>
+            </div>
+            <div class="chart-row" style="display: flex; align-items: center; gap: 12px; font-size: 13px;">
+              <span style="width: 100px; color: var(--text-secondary); font-weight: 600;">4단계 (우수)</span>
+              <div style="flex: 1; height: 14px; background: rgba(255,255,255,0.03); border-radius: 7px; overflow: hidden; border: 1px solid var(--glass-border); position: relative;">
+                <div id="chart-fill-box4" style="height: 100%; width: 0%; background: linear-gradient(90deg, #a855f7, #c084fc); border-radius: 7px; transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 0 10px rgba(168,85,247,0.2);"></div>
+              </div>
+              <span id="chart-count-box4" style="width: 45px; text-align: right; font-weight: 700; color: #fff;">0개</span>
+            </div>
+            <div class="chart-row" style="display: flex; align-items: center; gap: 12px; font-size: 13px;">
+              <span style="width: 100px; color: var(--text-secondary); font-weight: 600;">5단계 (암기완료)</span>
+              <div style="flex: 1; height: 14px; background: rgba(255,255,255,0.03); border-radius: 7px; overflow: hidden; border: 1px solid var(--glass-border); position: relative;">
+                <div id="chart-fill-box5" style="height: 100%; width: 0%; background: linear-gradient(90deg, #10b981, #34d399); border-radius: 7px; transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 0 10px rgba(16,185,129,0.2);"></div>
+              </div>
+              <span id="chart-count-box5" style="width: 45px; text-align: right; font-weight: 700; color: #fff;">0개</span>
+            </div>
+          </div>
+        </div>
+      </section>
     </main>
   </div>
 
@@ -620,13 +732,13 @@
   </div>
 
   <!-- Scripts -->
-  <script src="default-words.js"></script>
-  <script src="js/core-state.js"></script>
-  <script src="js/voice-engine.js"></script>
-  <script src="js/tab-dashboard.js"></script>
-  <script src="js/tab-study.js"></script>
-  <script src="js/tab-quiz.js"></script>
-  <script src="js/tab-dictation.js"></script>
-  <script src="js/tab-manage.js"></script>
+  <script src="default-words.js?v=1.0.0"></script>
+  <script src="js/core-state.js?v=1.0.0"></script>
+  <script src="js/voice-engine.js?v=1.0.0"></script>
+  <script src="js/tab-dashboard.js?v=1.0.0"></script>
+  <script src="js/tab-study.js?v=1.0.0"></script>
+  <script src="js/tab-quiz.js?v=1.0.0"></script>
+  <script src="js/tab-dictation.js?v=1.0.0"></script>
+  <script src="js/tab-manage.js?v=1.0.0"></script>
 </body>
 </html>

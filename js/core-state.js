@@ -8,6 +8,8 @@ let words = [];
 let streak = 0;
 let lastStudyDate = null;
 let currentUser = null;
+let incorrectWordIds = [];
+let completedTodayWordIds = [];
 
 // Study session state
 let studySession = {
@@ -54,12 +56,35 @@ document.addEventListener('DOMContentLoaded', () => {
   setupManage();
   setupModals();
   updateStreakDisplay();
+  setupEnvironmentBadge();
   
   // Create initial Lucide icons
   if (window.lucide) {
     window.lucide.createIcons();
   }
 });
+
+function setupEnvironmentBadge() {
+  const envBadge = document.getElementById('env-badge');
+  if (envBadge) {
+    const isLocal = window.location.hostname === 'localhost' || 
+                    window.location.hostname === '127.0.0.1' || 
+                    window.location.protocol === 'file:';
+    if (isLocal) {
+      envBadge.textContent = 'LOCAL';
+      envBadge.style.display = 'inline-block';
+      envBadge.style.background = 'rgba(245, 158, 11, 0.15)';
+      envBadge.style.color = '#f59e0b';
+      envBadge.style.border = '1px solid rgba(245, 158, 11, 0.3)';
+    } else {
+      envBadge.textContent = 'LIVE';
+      envBadge.style.display = 'inline-block';
+      envBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+      envBadge.style.color = '#10b981';
+      envBadge.style.border = '1px solid rgba(16, 185, 129, 0.3)';
+    }
+  }
+}
 
 // --- LocalStorage & Data Management ---
 function loadData() {
@@ -116,14 +141,60 @@ function loadData() {
   streak = parseInt(localStorage.getItem('lingopop_streak')) || 0;
   lastStudyDate = localStorage.getItem('lingopop_last_study_date') || null;
 
+  // Load incorrect words
+  try {
+    incorrectWordIds = JSON.parse(localStorage.getItem('lingopop_incorrect_words')) || [];
+  } catch (e) {
+    incorrectWordIds = [];
+  }
+
+  // Load completed today list
+  const todayStr = new Date().toDateString();
+  const lastCompletedDate = localStorage.getItem('lingopop_completed_date');
+  if (lastCompletedDate === todayStr) {
+    try {
+      completedTodayWordIds = JSON.parse(localStorage.getItem('lingopop_completed_today')) || [];
+    } catch (e) {
+      completedTodayWordIds = [];
+    }
+  } else {
+    completedTodayWordIds = [];
+    localStorage.setItem('lingopop_completed_date', todayStr);
+    localStorage.setItem('lingopop_completed_today', JSON.stringify([]));
+  }
+
   // Initialize level and lesson filter dropdown values
   updateLevelFilters();
 }
 
 function saveData() {
   localStorage.setItem('lingopop_words', JSON.stringify(words));
+  localStorage.setItem('lingopop_incorrect_words', JSON.stringify(incorrectWordIds));
+  localStorage.setItem('lingopop_completed_today', JSON.stringify(completedTodayWordIds));
   updateDashboardStats();
   updateLevelFilters();
+}
+
+function addIncorrectWord(id) {
+  if (!incorrectWordIds.includes(id)) {
+    incorrectWordIds.push(id);
+    saveData();
+  }
+}
+
+function removeIncorrectWord(id) {
+  const index = incorrectWordIds.indexOf(id);
+  if (index > -1) {
+    incorrectWordIds.splice(index, 1);
+    saveData();
+  }
+}
+
+function markWordCompletedToday(id) {
+  if (!completedTodayWordIds.includes(id)) {
+    completedTodayWordIds.push(id);
+    saveData();
+  }
 }
 
 function resetDatabase() {
@@ -335,9 +406,11 @@ function setupNavigation() {
       }
 
       // Context specific updates when entering tabs
-      if (targetTab === 'dashboard-tab') {
+      if (targetTab === 'dashboard-tab' || targetTab === 'stats-tab') {
         updateDashboardStats();
       } else if (targetTab === 'study-tab') {
+        const filterPanel = document.querySelector('.study-header');
+        if (filterPanel) filterPanel.style.display = 'flex';
         initStudySession(); // 리프레시: 플래시카드 첫 카드부터 다시 학습 시작
       } else if (targetTab === 'quiz-tab') {
         resetQuizState(); // 리프레시: 진행중이던 퀴즈를 리셋하고 설정창으로 돌아감

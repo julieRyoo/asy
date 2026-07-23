@@ -162,17 +162,25 @@ function initStudySession() {
       filtered = words.filter(w => w.level === filterVal);
     } else {
       filtered = words.filter(w => w.level === filterVal && w.lesson === lessonVal);
-      // Ensure sorted index by ID
-      filtered.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' }));
-      
-      const segmentVal = document.getElementById('study-segment-filter').value;
-      if (segmentVal === '1') {
-        filtered = filtered.slice(0, 20);
-      } else if (segmentVal === '2') {
-        filtered = filtered.slice(20, 40);
-      } else if (segmentVal === '3') {
-        filtered = filtered.slice(40, 60);
-      }
+    }
+  }
+
+  // Ensure sorted index by ID numeric suffix (e.g. 16 in a2_l08_16)
+  filtered.sort((a, b) => {
+    const numA = parseInt(a.id.split('_').pop(), 10) || 0;
+    const numB = parseInt(b.id.split('_').pop(), 10) || 0;
+    return numA - numB;
+  });
+  
+  // Apply segment slicing for non-due words
+  if (filterVal !== 'due') {
+    const segmentVal = document.getElementById('study-segment-filter').value;
+    if (segmentVal === '1') {
+      filtered = filtered.slice(0, 20);
+    } else if (segmentVal === '2') {
+      filtered = filtered.slice(20, 40);
+    } else if (segmentVal === '3') {
+      filtered = filtered.slice(40, 60);
     }
   }
 
@@ -371,14 +379,43 @@ function evaluateCurrentWord(remembered) {
       const newBox = Math.min(oldBox + 1, 5);
       targetWord.box = newBox;
       targetWord.nextReview = Date.now() + LEITNER_INTERVALS[newBox];
+      
+      // If correct, remove from incorrect list
+      removeIncorrectWord(targetWord.id);
     } else {
       // Demote back to Box 1
       targetWord.box = 1;
       targetWord.nextReview = Date.now() + LEITNER_INTERVALS[1];
+      
+      // If forgotten, add to incorrect list
+      addIncorrectWord(targetWord.id);
     }
+    
+    // Mark as completed today
+    markWordCompletedToday(targetWord.id);
     
     saveData();
     incrementStreak();
+
+    // Check if 100% due words are completed today and fire confetti
+    const now = Date.now();
+    const remainingDue = words.filter(w => !w.nextReview || w.nextReview <= now).length;
+    const completedToday = completedTodayWordIds.length;
+    const totalDue = remainingDue + completedToday;
+    if (totalDue > 0 && remainingDue === 0 && completedToday > 0) {
+      const lastConfetti = localStorage.getItem('lingopop_last_confetti_date');
+      const todayStr = new Date().toDateString();
+      if (lastConfetti !== todayStr) {
+        localStorage.setItem('lingopop_last_confetti_date', todayStr);
+        if (window.confetti) {
+          window.confetti({
+            particleCount: 150,
+            spread: 80,
+            origin: { y: 0.6 }
+          });
+        }
+      }
+    }
   }
 
   // Slide to next card

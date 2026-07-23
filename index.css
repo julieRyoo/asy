@@ -1935,3 +1935,39 @@ body {
   }
 }
 
+/* --- Premium Hover Card & Stats Chart Row styles --- */
+.hover-card {
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+.hover-card:hover {
+  transform: translateY(-3px) scale(1.01);
+  border-color: rgba(239, 68, 68, 0.35) !important;
+  box-shadow: 0 10px 25px rgba(239, 68, 68, 0.08), inset 0 0 12px rgba(239, 68, 68, 0.05) !important;
+  background: rgba(239, 68, 68, 0.03) !important;
+}
+
+.chart-row:hover div {
+  border-color: var(--glass-border-focus) !important;
+}
+
+.chart-row div div {
+  position: relative;
+  overflow: hidden;
+}
+
+.chart-row div div::after {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  transform: translateX(-100%);
+  animation: shine 3s infinite;
+}
+
+@keyframes shine {
+  100% {
+    transform: translateX(100%);
+  }
+}
+
