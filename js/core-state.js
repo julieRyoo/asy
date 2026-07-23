@@ -81,17 +81,27 @@ function loadData() {
         words = [...window.defaultWords];
         saveData();
       } else {
-        // Sync: window.defaultWords에 새로 추가된 단어들이 로컬스토리지에 없으면 안전하게 병합
-        let hasNewDefaultWords = false;
+        // Sync: default-words.js와 로컬스토리지를 정확하게 동기화 (새로운 단어 추가 + 빠진 단어 제거)
+        let isSynced = false;
+        
+        // 1. 없는 단어 추가
         window.defaultWords.forEach(defaultWord => {
           const exists = words.some(w => w.id === defaultWord.id);
           if (!exists) {
             words.push({ ...defaultWord });
-            hasNewDefaultWords = true;
+            isSynced = true;
           }
         });
-        if (hasNewDefaultWords) {
-          console.log("새롭게 추가된 기본 단어 목록을 발견하여 병합합니다.");
+        
+        // 2. defaultWords에 없는 기존 단어 제거 (레슨 8만 남기기)
+        const initialCount = words.length;
+        words = words.filter(w => window.defaultWords.some(dw => dw.id === w.id));
+        if (words.length !== initialCount) {
+          isSynced = true;
+        }
+
+        if (isSynced) {
+          console.log("기본 단어 목록 동기화 수행 완료");
           saveData();
         }
       }
