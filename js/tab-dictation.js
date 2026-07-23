@@ -218,19 +218,22 @@ function renderDictationPrompt() {
   nextBtn.style.display = 'none';
 
   if (currentPrompt.type === 'text') {
-    hintTextEl.textContent = '화면의 영어 단어를 보고 아래 입력창에 스펠링을 입력하세요.';
+    hintTextEl.textContent = '화면의 영어 단어를 보고 아래 입력창에 한글 뜻을 입력하세요.';
     promptTextEl.textContent = currentPrompt.word.word;
     promptTextEl.style.display = 'block';
     if (replayBtn) replayBtn.style.display = 'none';
+    dictationInput.placeholder = '한글 뜻을 입력하고 엔터를 치세요';
   } else if (currentPrompt.type === 'meaning') {
     hintTextEl.textContent = '한글 뜻을 보고 아래 입력창에 해당하는 영어 스펠링을 입력하세요.';
     promptTextEl.textContent = `[${currentPrompt.word.pos}] ${currentPrompt.word.definition}`;
     promptTextEl.style.display = 'block';
     if (replayBtn) replayBtn.style.display = 'none';
+    dictationInput.placeholder = '영어 스펠링을 입력하고 엔터를 치세요';
   } else { // 'audio'
     hintTextEl.textContent = '원어민 발음을 잘 듣고 아래 입력창에 영어 단어(스펠링)를 입력하세요.';
     promptTextEl.style.display = 'none';
     if (replayBtn) replayBtn.style.display = 'flex';
+    dictationInput.placeholder = '영어 스펠링을 입력하고 엔터를 치세요';
     
     // Auto speak
     setTimeout(() => {
@@ -253,6 +256,27 @@ function renderDictationPrompt() {
   }, 120);
 }
 
+function matchKoreanDefinition(userVal, correctDefinition) {
+  // Normalize strings by removing spaces, commas, and special symbols
+  const normalize = (str) => str.replace(/[\s,\.\(\)\~\?]/g, '').toLowerCase();
+  const normalizedUser = normalize(userVal);
+  const normalizedCorrect = normalize(correctDefinition);
+
+  if (!normalizedUser) return false;
+
+  // 1. Exact normalized match
+  if (normalizedUser === normalizedCorrect) return true;
+
+  // 2. If the correct definition contains commas or slashes, check synonyms
+  const synonyms = correctDefinition.split(/[,/]/).map(s => normalize(s.trim())).filter(Boolean);
+  if (synonyms.includes(normalizedUser)) return true;
+
+  // 3. Substring check if user answer is long enough (>= 2 chars)
+  if (normalizedUser.length >= 2 && normalizedCorrect.includes(normalizedUser)) return true;
+
+  return false;
+}
+
 function checkDictationAnswer() {
   const currentPrompt = dictationSession.prompts[dictationSession.currentIndex];
   if (!currentPrompt) return;
@@ -262,12 +286,25 @@ function checkDictationAnswer() {
   const checkBtn = document.getElementById('dictation-check-btn');
   const nextBtn = document.getElementById('dictation-next-btn');
 
-  const userVal = dictationInput.value.trim().toLowerCase();
-  const correctVal = currentPrompt.word.word.trim().toLowerCase();
+  const userVal = dictationInput.value.trim();
+  let isCorrect = false;
+  let correctAnswerText = '';
+
+  if (currentPrompt.type === 'text') {
+    // Check Korean meaning
+    isCorrect = matchKoreanDefinition(userVal, currentPrompt.word.definition);
+    correctAnswerText = currentPrompt.word.definition;
+  } else {
+    // Check English spelling
+    const userValLower = userVal.toLowerCase();
+    const correctVal = currentPrompt.word.word.trim().toLowerCase();
+    isCorrect = (userValLower === correctVal);
+    correctAnswerText = currentPrompt.word.word;
+  }
 
   // Save student's answer
-  currentPrompt.userAnswer = dictationInput.value.trim();
-  currentPrompt.isCorrect = (userVal === correctVal);
+  currentPrompt.userAnswer = userVal;
+  currentPrompt.isCorrect = isCorrect;
 
   dictationInput.disabled = true;
   checkBtn.style.display = 'none';
@@ -280,7 +317,7 @@ function checkDictationAnswer() {
     feedbackEl.style.color = '#10b981';
     feedbackEl.style.border = '1px solid rgba(16, 185, 129, 0.25)';
   } else {
-    feedbackEl.innerHTML = `<span style="display:inline-flex; align-items:center; gap:6px; margin-bottom: 4px;"><i data-lucide="x-circle" style="width:18px; height:18px;"></i> 오답입니다.</span><br><span style="font-weight: 500; font-size:13px; opacity:0.9;">정답: <strong style="font-size:15px; color:#fff; font-family:var(--font-display);">${currentPrompt.word.word}</strong> (입력: ${dictationInput.value ? dictationInput.value : '없음'})</span>`;
+    feedbackEl.innerHTML = `<span style="display:inline-flex; align-items:center; gap:6px; margin-bottom: 4px;"><i data-lucide="x-circle" style="width:18px; height:18px;"></i> 오답입니다.</span><br><span style="font-weight: 500; font-size:13px; opacity:0.9;">정답: <strong style="font-size:15px; color:#fff; font-family:var(--font-display);">${correctAnswerText}</strong> (입력: ${userVal ? userVal : '없음'})</span>`;
     feedbackEl.style.background = 'rgba(239, 68, 68, 0.12)';
     feedbackEl.style.color = '#ef4444';
     feedbackEl.style.border = '1px solid rgba(239, 68, 68, 0.25)';
@@ -314,18 +351,22 @@ function showDictationResults() {
     let typeLabel = '';
     let displayPrompt = '';
     let promptCellClass = 'color: #fff;';
+    let displayCorrectAnswer = '';
 
     if (p.type === 'text') {
       typeLabel = '[스펠링 보기]';
-      displayPrompt = p.promptText;
+      displayPrompt = p.word.word;
       promptCellClass = 'color: var(--color-primary);';
+      displayCorrectAnswer = p.word.definition;
     } else if (p.type === 'meaning') {
       typeLabel = '[뜻 보기]';
       displayPrompt = `[${p.word.pos}] ${p.word.definition}`;
       promptCellClass = 'color: #3b82f6;';
+      displayCorrectAnswer = p.word.word;
     } else { // 'audio'
       typeLabel = '[음성 듣기]';
       displayPrompt = '🔊 (음성 출제됨)';
+      displayCorrectAnswer = p.word.word;
     }
 
     const checkIcon = p.isCorrect 
@@ -338,7 +379,7 @@ function showDictationResults() {
       <td style="padding: 12px 16px; color: var(--text-secondary); font-weight: 500;">${idx + 1}</td>
       <td style="padding: 12px 16px; font-weight: 600; ${promptCellClass}">${typeLabel} ${displayPrompt}</td>
       <td style="padding: 12px 16px; font-family: var(--font-display); font-weight: 500; color: var(--text-secondary);">${userAnsText}</td>
-      <td style="padding: 12px 16px; font-family: var(--font-display); font-weight: 700; color: #fff; font-size: 15px;">${p.word.word}</td>
+      <td style="padding: 12px 16px; font-family: var(--font-display); font-weight: 700; color: #fff; font-size: 15px;">${displayCorrectAnswer}</td>
       <td style="padding: 12px 16px; text-align: center;">${checkIcon}</td>
       <td style="padding: 12px 16px; font-style: italic; color: var(--text-muted); font-size: 13px;">${p.word.pos}</td>
       <td style="padding: 12px 16px; color: var(--text-secondary);">${p.word.definition}</td>
