@@ -70,22 +70,22 @@ function startQuiz() {
   // Filter pool
   let pool = [...words];
   if (level !== 'all') {
-    if (lesson === 'all') {
-      pool = pool.filter(w => w.level === level);
-    } else {
-      pool = pool.filter(w => w.level === level && w.lesson === lesson);
-      // Ensure sorted index by ID
-      pool.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' }));
-      
-      const segmentVal = document.getElementById('quiz-segment-select').value;
-      if (segmentVal === '1') {
-        pool = pool.slice(0, 20);
-      } else if (segmentVal === '2') {
-        pool = pool.slice(20, 40);
-      } else if (segmentVal === '3') {
-        pool = pool.slice(40, 60);
-      }
-    }
+    pool = pool.filter(w => w.level === level);
+  }
+  if (lesson !== 'all') {
+    pool = pool.filter(w => w.lesson === lesson);
+  }
+
+  // Ensure sorted index by ID
+  pool.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' }));
+  
+  const segmentVal = document.getElementById('quiz-segment-select').value;
+  if (segmentVal === '1') {
+    pool = pool.slice(0, 20);
+  } else if (segmentVal === '2') {
+    pool = pool.slice(20, 40);
+  } else if (segmentVal === '3') {
+    pool = pool.slice(40, 60);
   }
 
   if (pool.length < 4 && mode === 'choice') {

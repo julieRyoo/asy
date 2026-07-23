@@ -313,6 +313,7 @@ function updateLessonFilters(tabType) {
     } else if (tabType === 'manage' && lessonFilterElement) {
       lessonFilterElement.style.display = 'none';
     }
+    updateSegmentFiltersVisibility(tabType);
     return;
   }
 
@@ -350,7 +351,6 @@ function updateLessonFilters(tabType) {
 function updateSegmentFiltersVisibility(tabType) {
   if (tabType === 'study') {
     const levelVal = document.getElementById('study-level-filter').value;
-    const lessonVal = document.getElementById('study-lesson-filter').value;
     const segmentContainer = document.getElementById('study-segment-filter-container');
     if (segmentContainer) {
       if (levelVal !== 'due') {
@@ -361,28 +361,14 @@ function updateSegmentFiltersVisibility(tabType) {
       }
     }
   } else if (tabType === 'quiz') {
-    const levelVal = document.getElementById('quiz-level-select').value;
-    const lessonVal = document.getElementById('quiz-lesson-select').value;
     const segmentContainer = document.getElementById('quiz-segment-select-container');
     if (segmentContainer) {
-      if (levelVal !== 'all' && lessonVal !== 'all') {
-        segmentContainer.style.display = 'block';
-      } else {
-        segmentContainer.style.display = 'none';
-        document.getElementById('quiz-segment-select').value = 'all';
-      }
+      segmentContainer.style.display = 'block';
     }
   } else if (tabType === 'dictation') {
-    const levelVal = document.getElementById('dictation-level-filter').value;
-    const lessonVal = document.getElementById('dictation-lesson-filter').value;
     const segmentContainer = document.getElementById('dictation-segment-filter-container');
     if (segmentContainer) {
-      if (levelVal !== 'all' && lessonVal !== 'all') {
-        segmentContainer.style.display = 'block';
-      } else {
-        segmentContainer.style.display = 'none';
-        document.getElementById('dictation-segment-filter').value = 'all';
-      }
+      segmentContainer.style.display = 'block';
     }
   }
 }

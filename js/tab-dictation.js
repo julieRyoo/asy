@@ -104,26 +104,24 @@ function startDictation() {
   const lessonVal = document.getElementById('dictation-lesson-filter').value;
   const modeVal = document.getElementById('dictation-mode-select').value;
 
-  let filtered = [];
-  if (levelVal === 'all') {
-    filtered = [...words];
-  } else {
-    if (lessonVal === 'all') {
-      filtered = words.filter(w => w.level === levelVal);
-    } else {
-      filtered = words.filter(w => w.level === levelVal && w.lesson === lessonVal);
-      // Ensure sorted index by ID
-      filtered.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' }));
-      
-      const segmentVal = document.getElementById('dictation-segment-filter').value;
-      if (segmentVal === '1') {
-        filtered = filtered.slice(0, 20);
-      } else if (segmentVal === '2') {
-        filtered = filtered.slice(20, 40);
-      } else if (segmentVal === '3') {
-        filtered = filtered.slice(40, 60);
-      }
-    }
+  let filtered = [...words];
+  if (levelVal !== 'all') {
+    filtered = filtered.filter(w => w.level === levelVal);
+  }
+  if (lessonVal !== 'all') {
+    filtered = filtered.filter(w => w.lesson === lessonVal);
+  }
+
+  // Ensure sorted index by ID
+  filtered.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' }));
+  
+  const segmentVal = document.getElementById('dictation-segment-filter').value;
+  if (segmentVal === '1') {
+    filtered = filtered.slice(0, 20);
+  } else if (segmentVal === '2') {
+    filtered = filtered.slice(20, 40);
+  } else if (segmentVal === '3') {
+    filtered = filtered.slice(40, 60);
   }
 
   if (filtered.length === 0) {

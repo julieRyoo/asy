@@ -165,12 +165,8 @@ function initStudySession() {
     }
   }
 
-  // Ensure sorted index by ID numeric suffix (e.g. 16 in a2_l08_16)
-  filtered.sort((a, b) => {
-    const numA = parseInt(a.id.split('_').pop(), 10) || 0;
-    const numB = parseInt(b.id.split('_').pop(), 10) || 0;
-    return numA - numB;
-  });
+  // Ensure sorted index by ID
+  filtered.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' }));
   
   // Apply segment slicing for non-due words
   if (filterVal !== 'due') {
