@@ -127,6 +127,84 @@ function updateDashboardStats() {
   }
 
   renderDashboardLessons();
+  renderLevelLessonStatsReport();
+}
+
+function renderLevelLessonStatsReport() {
+  const container = document.getElementById('stats-level-lesson-container');
+  if (!container) return;
+
+  const uniqueLevels = Array.from(new Set(words.map(w => w.level))).filter(Boolean).sort().reverse();
+  
+  if (uniqueLevels.length === 0) {
+    container.innerHTML = `<p style="color: var(--text-secondary); font-size: 13px;">등록된 단어가 없습니다.</p>`;
+    return;
+  }
+
+  let html = '';
+
+  uniqueLevels.forEach(level => {
+    const levelWords = words.filter(w => w.level === level);
+    const levelTotal = levelWords.length;
+    const levelBox5Count = levelWords.filter(w => w.box === 5).length;
+    const levelPct = levelTotal > 0 ? Math.round((levelBox5Count / levelTotal) * 100) : 0;
+
+    const uniqueLessons = Array.from(new Set(levelWords.map(w => w.lesson))).filter(Boolean).sort((a, b) => {
+      return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+    });
+
+    html += `
+      <div style="background: rgba(255, 255, 255, 0.02); border: 1px solid var(--glass-border); border-radius: var(--radius-md); padding: 18px;">
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 14px; flex-wrap: wrap; gap: 8px;">
+          <div style="display: flex; align-items: center; gap: 10px;">
+            <span class="badge level-badge" style="font-size: 13px; padding: 4px 10px;">${level.toUpperCase()}</span>
+            <span style="font-size: 13px; color: var(--text-secondary); font-weight: 600;">총 ${levelTotal}개 단어</span>
+          </div>
+          <div style="display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--text-muted);">
+            <span>암기 완성도(Box 5): <strong style="color: var(--color-success); font-family: var(--font-display);">${levelPct}%</strong> (${levelBox5Count}/${levelTotal})</span>
+          </div>
+        </div>
+
+        <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 12px;">
+    `;
+
+    uniqueLessons.forEach(lsn => {
+      const lessonWords = levelWords.filter(w => w.lesson === lsn);
+      const lsnTotal = lessonWords.length;
+      const b1 = lessonWords.filter(w => w.box === 1).length;
+      const b2 = lessonWords.filter(w => w.box === 2).length;
+      const b3 = lessonWords.filter(w => w.box === 3).length;
+      const b4 = lessonWords.filter(w => w.box === 4).length;
+      const b5 = lessonWords.filter(w => w.box === 5).length;
+      const lsnPct = lsnTotal > 0 ? Math.round((b5 / lsnTotal) * 100) : 0;
+
+      html += `
+          <div style="background: rgba(0, 0, 0, 0.2); border: 1px solid rgba(255, 255, 255, 0.04); border-radius: var(--radius-sm); padding: 12px 14px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; font-size: 13px;">
+              <span style="font-weight: 700; color: #fff;">${lsn}</span>
+              <span style="font-size: 12px; color: var(--text-secondary); font-weight: 600;">${lsnTotal}개 (${lsnPct}% 완료)</span>
+            </div>
+            <div style="height: 8px; background: rgba(255,255,255,0.05); border-radius: 4px; overflow: hidden; margin-bottom: 10px;">
+              <div style="height: 100%; width: ${lsnPct}%; background: linear-gradient(90deg, var(--color-primary), var(--color-success)); border-radius: 4px; transition: width 0.6s ease;"></div>
+            </div>
+            <div style="display: flex; gap: 6px; flex-wrap: wrap; font-size: 11px;">
+              <span style="background: rgba(239, 68, 68, 0.15); color: #ef4444; padding: 2px 6px; border-radius: 4px; font-weight: 600;">Box 1: ${b1}</span>
+              <span style="background: rgba(245, 158, 11, 0.15); color: #f59e0b; padding: 2px 6px; border-radius: 4px; font-weight: 600;">Box 2: ${b2}</span>
+              <span style="background: rgba(59, 130, 246, 0.15); color: #3b82f6; padding: 2px 6px; border-radius: 4px; font-weight: 600;">Box 3: ${b3}</span>
+              <span style="background: rgba(168, 85, 247, 0.15); color: #a855f7; padding: 2px 6px; border-radius: 4px; font-weight: 600;">Box 4: ${b4}</span>
+              <span style="background: rgba(16, 185, 129, 0.15); color: #10b981; padding: 2px 6px; border-radius: 4px; font-weight: 600;">Box 5: ${b5}</span>
+            </div>
+          </div>
+      `;
+    });
+
+    html += `
+        </div>
+      </div>
+    `;
+  });
+
+  container.innerHTML = html;
 }
 
 function renderDashboardLessons() {

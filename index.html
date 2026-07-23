@@ -60,7 +60,7 @@
       <div class="sidebar-footer" style="display: flex; flex-direction: column; align-items: center; gap: 6px;">
         <p class="copyright" style="margin: 0;">&copy; 2026 LingoPop</p>
         <div style="display: flex; align-items: center; gap: 6px; font-size: 11px; margin-top: 2px;">
-          <span style="color: var(--text-muted); font-weight: 500;">v1.0.0</span>
+          <span style="color: var(--text-muted); font-weight: 500;">v1.1.0</span>
           <span id="env-badge" class="badge" style="font-size: 9px; padding: 1px 5px; border-radius: 3px; font-weight: 700; display: none;"></span>
         </div>
       </div>
@@ -129,7 +129,7 @@
               <option value="all">전체 레슨</option>
             </select>
           </div>
-          <div class="study-filter" id="study-segment-filter-container" style="display: none;">
+          <div class="study-filter" id="study-segment-filter-container">
             <label for="study-segment-filter">구간:</label>
             <select id="study-segment-filter" class="select-input">
               <option value="all">전체</option>
@@ -241,9 +241,17 @@
         <!-- Empty Study State -->
         <div class="empty-state" id="study-empty-state" style="display: none;">
           <div class="empty-icon"><i data-lucide="smile"></i></div>
-          <h3>오늘 공부할 단어를 모두 완료했습니다!</h3>
-          <p>새 단어를 추가하거나, 학습 범위 필터를 전체 단어 혹은 수준별 단어로 설정해 추가 학습해보세요.</p>
-          <button class="btn btn-primary" id="study-reset-filter-btn">학습 범위 전체 단어로 변경</button>
+          <h3 id="study-empty-title">오늘 공부할 단어를 모두 완료했습니다!</h3>
+          <p id="study-empty-desc">새 단어를 추가하거나, 학습 범위 필터를 전체 단어 혹은 수준별 단어로 설정해 추가 학습해보세요.</p>
+          <div style="display: flex; gap: 12px; justify-content: center; margin-top: 16px; flex-wrap: wrap;">
+            <button class="btn btn-outline" id="study-replay-segment-btn" style="display: none;">
+              <i data-lucide="rotate-cw"></i> 현재 구간 한 번 더
+            </button>
+            <button class="btn btn-primary" id="study-next-segment-btn" style="display: none;">
+              <i data-lucide="arrow-right-circle"></i> 다음 구간 학습하기
+            </button>
+            <button class="btn btn-secondary" id="study-reset-filter-btn">학습 범위 전체 단어로 변경</button>
+          </div>
         </div>
       </section>
 
@@ -570,6 +578,7 @@
           <table class="words-table">
             <thead>
               <tr>
+                <th style="width: 50px; text-align: center;">순번</th>
                 <th>단어</th>
                 <th>품사</th>
                 <th>뜻</th>
@@ -672,7 +681,17 @@
                 <div id="chart-fill-box5" style="height: 100%; width: 0%; background: linear-gradient(90deg, #10b981, #34d399); border-radius: 7px; transition: width 1s cubic-bezier(0.4, 0, 0.2, 1); box-shadow: 0 0 10px rgba(16,185,129,0.2);"></div>
               </div>
               <span id="chart-count-box5" style="width: 45px; text-align: right; font-weight: 700; color: #fff;">0개</span>
-            </div>
+          </div>
+        </div>
+
+        <!-- 4. Level & Lesson Detailed Stats Report -->
+        <div class="glass-panel" style="padding: 24px; border-radius: var(--radius-lg); margin-bottom: 30px;">
+          <h4 style="font-family: var(--font-display); font-size: 15px; font-weight: 700; color: #fff; margin: 0 0 16px 0; display: flex; align-items: center; gap: 8px;">
+            <i data-lucide="layers" style="color: var(--color-primary); width: 18px; height: 18px;"></i>
+            <span>레벨 & 레슨별 학습 달성 리포트</span>
+          </h4>
+          <div id="stats-level-lesson-container" style="display: flex; flex-direction: column; gap: 20px;">
+            <!-- Dynamic Level & Lesson Stats Cards -->
           </div>
         </div>
       </section>
@@ -732,13 +751,13 @@
   </div>
 
   <!-- Scripts -->
-  <script src="default-words.js?v=1.0.2"></script>
-  <script src="js/core-state.js?v=1.0.2"></script>
-  <script src="js/voice-engine.js?v=1.0.2"></script>
-  <script src="js/tab-dashboard.js?v=1.0.2"></script>
-  <script src="js/tab-study.js?v=1.0.2"></script>
-  <script src="js/tab-quiz.js?v=1.0.2"></script>
-  <script src="js/tab-dictation.js?v=1.0.2"></script>
-  <script src="js/tab-manage.js?v=1.0.2"></script>
+  <script src="default-words.js?v=1.1.0"></script>
+  <script src="js/core-state.js?v=1.1.0"></script>
+  <script src="js/voice-engine.js?v=1.1.0"></script>
+  <script src="js/tab-dashboard.js?v=1.1.0"></script>
+  <script src="js/tab-study.js?v=1.1.0"></script>
+  <script src="js/tab-quiz.js?v=1.1.0"></script>
+  <script src="js/tab-dictation.js?v=1.1.0"></script>
+  <script src="js/tab-manage.js?v=1.1.0"></script>
 </body>
 </html>

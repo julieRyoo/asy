@@ -350,15 +350,9 @@ function updateLessonFilters(tabType) {
 
 function updateSegmentFiltersVisibility(tabType) {
   if (tabType === 'study') {
-    const levelVal = document.getElementById('study-level-filter').value;
     const segmentContainer = document.getElementById('study-segment-filter-container');
     if (segmentContainer) {
-      if (levelVal !== 'due') {
-        segmentContainer.style.display = 'flex';
-      } else {
-        segmentContainer.style.display = 'none';
-        document.getElementById('study-segment-filter').value = 'all';
-      }
+      segmentContainer.style.display = 'flex';
     }
   } else if (tabType === 'quiz') {
     const segmentContainer = document.getElementById('quiz-segment-select-container');

@@ -34,6 +34,30 @@ function setupStudy() {
     startSessionBtn.addEventListener('click', startActiveStudySession);
   }
 
+  const replaySegBtn = document.getElementById('study-replay-segment-btn');
+  if (replaySegBtn) {
+    replaySegBtn.addEventListener('click', () => {
+      initStudySession();
+      startActiveStudySession();
+    });
+  }
+
+  const nextSegBtn = document.getElementById('study-next-segment-btn');
+  if (nextSegBtn) {
+    nextSegBtn.addEventListener('click', () => {
+      const segSelect = document.getElementById('study-segment-filter');
+      if (segSelect && segSelect.value !== 'all') {
+        const currentNum = parseInt(segSelect.value, 10);
+        const nextNum = currentNum + 1;
+        if (segSelect.querySelector(`option[value="${nextNum}"]`)) {
+          segSelect.value = String(nextNum);
+        }
+      }
+      initStudySession();
+      startActiveStudySession();
+    });
+  }
+
   // Card Flip trigger
   const flashcard = document.getElementById('flashcard');
   flashcard.addEventListener('click', (e) => {
@@ -168,15 +192,12 @@ function initStudySession() {
   // Ensure sorted index by ID
   filtered.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' }));
   
-  // Apply segment slicing for non-due words
-  if (filterVal !== 'due') {
-    const segmentVal = document.getElementById('study-segment-filter').value;
-    if (segmentVal === '1') {
-      filtered = filtered.slice(0, 20);
-    } else if (segmentVal === '2') {
-      filtered = filtered.slice(20, 40);
-    } else if (segmentVal === '3') {
-      filtered = filtered.slice(40, 60);
+  // Apply segment slicing
+  const segmentVal = document.getElementById('study-segment-filter').value;
+  if (segmentVal !== 'all') {
+    const segNum = parseInt(segmentVal, 10);
+    if (!isNaN(segNum) && segNum > 0) {
+      filtered = filtered.slice((segNum - 1) * 20, segNum * 20);
     }
   }
 
@@ -227,7 +248,9 @@ function initStudySession() {
 function startActiveStudySession() {
   const introState = document.getElementById('study-intro-state');
   const cardArea = document.getElementById('flashcard-area');
+  const emptyState = document.getElementById('study-empty-state');
   
+  if (emptyState) emptyState.style.display = 'none';
   if (introState) introState.style.display = 'none';
   if (cardArea) cardArea.style.display = 'flex';
   
@@ -423,6 +446,7 @@ function evaluateCurrentWord(remembered) {
       document.getElementById('study-empty-state').style.display = 'block';
       document.getElementById('flashcard-area').style.display = 'none';
       updateStudyProgress(studySession.words.length, studySession.words.length);
+      updateSegmentNavButtons();
     }, 200);
   } else {
     // Reset flip layout, pause briefly for visual smoothness, then render
@@ -438,4 +462,49 @@ function evaluateCurrentWord(remembered) {
       renderActiveFlashcard();
     }
   }
+}
+
+function updateSegmentNavButtons() {
+  const segSelect = document.getElementById('study-segment-filter');
+  const replaySegBtn = document.getElementById('study-replay-segment-btn');
+  const nextSegBtn = document.getElementById('study-next-segment-btn');
+  const emptyTitle = document.getElementById('study-empty-title');
+  const emptyDesc = document.getElementById('study-empty-desc');
+
+  if (!segSelect) return;
+
+  const currentVal = segSelect.value;
+  if (currentVal !== 'all') {
+    const currentNum = parseInt(currentVal, 10);
+    const nextNum = currentNum + 1;
+    const nextOption = segSelect.querySelector(`option[value="${nextNum}"]`);
+
+    let hasNav = false;
+
+    if (replaySegBtn) {
+      replaySegBtn.style.display = 'inline-flex';
+      replaySegBtn.innerHTML = `<i data-lucide="rotate-cw"></i> ${currentNum}구간 한 번 더`;
+      hasNav = true;
+    }
+
+    if (nextOption && nextSegBtn) {
+      nextSegBtn.style.display = 'inline-flex';
+      nextSegBtn.innerHTML = `<i data-lucide="arrow-right-circle"></i> 다음 구간 (${nextNum}구간) 학습하기`;
+      hasNav = true;
+    } else if (nextSegBtn) {
+      nextSegBtn.style.display = 'none';
+    }
+
+    if (hasNav) {
+      if (emptyTitle) emptyTitle.textContent = `${currentNum}구간 단어 학습을 완료했습니다! 🎉`;
+      if (emptyDesc) emptyDesc.textContent = `현재 구간을 한 번 더 복습하거나 다음 구간 단어를 이어서 학습해보세요.`;
+      if (window.lucide) window.lucide.createIcons();
+      return;
+    }
+  }
+
+  if (replaySegBtn) replaySegBtn.style.display = 'none';
+  if (nextSegBtn) nextSegBtn.style.display = 'none';
+  if (emptyTitle) emptyTitle.textContent = '오늘 공부할 단어를 모두 완료했습니다!';
+  if (emptyDesc) emptyDesc.textContent = '새 단어를 추가하거나, 학습 범위 필터를 전체 단어 혹은 수준별 단어로 설정해 추가 학습해보세요.';
 }
