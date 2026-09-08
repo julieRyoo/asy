@@ -21,6 +21,16 @@ function setupDashboard() {
     });
   }
 
+  const collocationCard = document.getElementById('dash-collocation-card');
+  if (collocationCard) {
+    collocationCard.addEventListener('click', () => {
+      const quizNavBtn = document.querySelector('[data-target="quiz-tab"]');
+      if (quizNavBtn) quizNavBtn.click();
+      const modeSelect = document.getElementById('quiz-mode-select');
+      if (modeSelect) modeSelect.value = 'collocation';
+    });
+  }
+
   updateDashboardStats();
 }
 
@@ -41,11 +51,9 @@ function startIncorrectStudySession() {
   
   document.getElementById('study-intro-state').style.display = 'none';
   document.getElementById('study-empty-state').style.display = 'none';
-  document.getElementById('flashcard-area').style.display = 'block';
+  document.getElementById('flashcard-area').style.display = 'flex';
   
-  if (typeof renderCard === 'function') {
-    renderCard();
-  }
+  renderActiveFlashcard();
 }
 
 function updateDashboardStats() {
@@ -231,12 +239,12 @@ function renderDashboardLessons() {
   });
 
   const sortedKeys = Object.keys(groups).sort((a, b) => {
-    // Sort by level first, then lesson (descending)
+    // Sort by level first (Par C1 then Par C2), then lesson (ascending)
     const gA = groups[a];
     const gB = groups[b];
-    const lvlCompare = gB.level.localeCompare(gA.level);
+    const lvlCompare = gA.level.localeCompare(gB.level);
     if (lvlCompare !== 0) return lvlCompare;
-    return gB.lesson.localeCompare(gA.lesson, undefined, { numeric: true, sensitivity: 'base' });
+    return gA.lesson.localeCompare(gB.lesson, undefined, { numeric: true, sensitivity: 'base' });
   });
 
   if (sortedKeys.length === 0) {
@@ -302,7 +310,11 @@ function renderDashboardLessons() {
         </button>
         <button class="btn btn-outline btn-sm btn-quiz" data-level="${group.level}" data-lesson="${group.lesson}">
           <i data-lucide="award"></i>
-          <span>퀴즈풀기</span>
+          <span>퀴즈</span>
+        </button>
+        <button class="btn btn-outline btn-sm btn-collocation" data-level="${group.level}" data-lesson="${group.lesson}" style="border-color: rgba(168, 85, 247, 0.4); color: #c084fc;">
+          <i data-lucide="puzzle"></i>
+          <span>빈칸 게임</span>
         </button>
       </div>
     `;
@@ -344,6 +356,33 @@ function renderDashboardLessons() {
       if (quizNavBtn) {
         quizNavBtn.click();
       }
+    });
+
+    card.querySelector('.btn-collocation').addEventListener('click', (e) => {
+      const targetLvl = e.currentTarget.getAttribute('data-level');
+      const targetLsn = e.currentTarget.getAttribute('data-lesson');
+      
+      document.getElementById('quiz-level-select').value = targetLvl;
+      updateLessonFilters('quiz');
+      document.getElementById('quiz-lesson-select').value = targetLsn;
+      
+      const modeSelect = document.getElementById('quiz-mode-select');
+      if (modeSelect) modeSelect.value = 'collocation';
+      
+      const quizSeg = document.getElementById('quiz-segment-select');
+      if (quizSeg) quizSeg.value = 'all';
+      updateSegmentFiltersVisibility('quiz');
+      
+      const navButtons = document.querySelectorAll('.nav-btn');
+      const quizNavBtn = Array.from(navButtons).find(btn => btn.getAttribute('data-target') === 'quiz-tab');
+      if (quizNavBtn) {
+        quizNavBtn.click();
+      }
+      
+      setTimeout(() => {
+        const startBtn = document.getElementById('quiz-start-btn');
+        if (startBtn) startBtn.click();
+      }, 50);
     });
 
     gridContainer.appendChild(card);

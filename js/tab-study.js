@@ -329,8 +329,28 @@ function renderActiveFlashcard() {
   document.getElementById('card-back-box').textContent = boxText;
   document.getElementById('card-back-word').textContent = card.word;
   document.getElementById('card-back-pos').textContent = card.pos;
+
+  const synonymEl = document.getElementById('card-back-synonym');
+  if (synonymEl) {
+    if (card.synonym) {
+      synonymEl.textContent = `유의어: ${card.synonym}`;
+      synonymEl.style.display = 'inline-flex';
+    } else {
+      synonymEl.style.display = 'none';
+    }
+  }
+
   document.getElementById('card-back-meaning').textContent = card.definition;
-  document.getElementById('card-back-example').textContent = card.example ? `"${card.example}"` : "";
+
+  const exampleEl = document.getElementById('card-back-example');
+  if (card.example) {
+    const regex = new RegExp(`\\b(${escapeRegExp(card.word)})\\b`, 'gi');
+    const highlighted = card.example.replace(regex, '<strong class="highlight-word">$1</strong>');
+    exampleEl.innerHTML = `"${highlighted}"`;
+  } else {
+    exampleEl.textContent = "";
+  }
+
   document.getElementById('card-back-example-translation').textContent = card.exampleTranslation ? `"${card.exampleTranslation}"` : "";
 
   updateStudyProgress(studySession.currentIndex + 1, studySession.words.length);

@@ -180,9 +180,6 @@ function renderManageTable() {
               <button class="btn-icon" onclick="window.editWord('${item.id}')" title="수정">
                 <i data-lucide="edit-3"></i>
               </button>
-              <button class="btn-icon btn-icon-danger" onclick="window.deleteWord('${item.id}')" title="삭제">
-                <i data-lucide="trash-2"></i>
-              </button>
             </div>
           </td>
         `;
@@ -209,14 +206,6 @@ window.editWord = function(id) {
   const target = words.find(w => w.id === id);
   if (target) {
     openWordModal(target);
-  }
-};
-
-window.deleteWord = function(id) {
-  if (confirm("이 단어를 정말 삭제하시겠습니까?")) {
-    words = words.filter(w => w.id !== id);
-    saveData();
-    renderManageTable();
   }
 };
 

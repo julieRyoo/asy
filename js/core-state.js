@@ -3,7 +3,7 @@
  */
 
 // --- State Configurations ---
-const DB_VERSION = "a2_l08_l12_v2";
+const DB_VERSION = "2026.09.09";
 let words = [];
 let streak = 0;
 let lastStudyDate = null;
@@ -208,8 +208,8 @@ function resetDatabase() {
 }
 
 function updateLevelFilters() {
-  // Get all unique levels from words
-  const uniqueLevels = Array.from(new Set(words.map(w => w.level))).filter(Boolean).sort().reverse();
+  // Get all unique levels from words (natural ascending sort: Par C1, Par C2)
+  const uniqueLevels = Array.from(new Set(words.map(w => w.level))).filter(Boolean).sort();
   
   // Update study filter level dropdown
   const studyFilter = document.getElementById('study-level-filter');
@@ -327,9 +327,9 @@ function updateLessonFilters(tabType) {
   // Find unique lessons for this level
   const relatedWords = words.filter(w => w.level === levelVal);
   
-  // Sort lessons based on alphanumeric ordering
+  // Sort lessons based on alphanumeric ordering (ascending)
   const uniqueLessons = Array.from(new Set(relatedWords.map(w => w.lesson))).filter(Boolean).sort((a, b) => {
-    return b.localeCompare(a, undefined, { numeric: true, sensitivity: 'base' });
+    return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
   });
 
   const prevValue = lessonFilterElement.value;
@@ -435,4 +435,9 @@ function updateStreakDisplay() {
   if (streakDays) {
     streakDays.textContent = streak;
   }
+}
+
+function escapeRegExp(string) {
+  if (!string) return '';
+  return string.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

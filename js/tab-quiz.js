@@ -21,7 +21,13 @@ function setupQuiz() {
 
   document.getElementById('quiz-speak-btn').addEventListener('click', () => {
     const q = quizSession.questions[quizSession.currentIndex];
-    if (q) speakWord(q.word);
+    if (q) {
+      if (quizSession.mode === 'collocation' && q.rawItem.example) {
+        speakWord(q.rawItem.example);
+      } else {
+        speakWord(q.word);
+      }
+    }
   });
 
   // Action result handlers
@@ -48,9 +54,40 @@ function setupQuiz() {
   });
 
   document.getElementById('quiz-next-btn').addEventListener('click', loadNextQuestion);
+
+  // Keyboard shortcut listener for quiz (1-4 for choices, Enter/Space for next)
+  window.addEventListener('keydown', (e) => {
+    const playContainer = document.getElementById('quiz-play-container');
+    if (!playContainer || playContainer.style.display !== 'block') return;
+
+    // If typing in spelling mode, don't trigger number hotkeys
+    if (document.activeElement && document.activeElement.id === 'spelling-input') {
+      return;
+    }
+
+    const nextBtn = document.getElementById('quiz-next-btn');
+    if (nextBtn && nextBtn.style.display !== 'none' && (e.code === 'Enter' || e.code === 'Space')) {
+      e.preventDefault();
+      loadNextQuestion();
+      return;
+    }
+
+    if (['1', '2', '3', '4'].includes(e.key)) {
+      const idx = parseInt(e.key) - 1;
+      const buttons = document.querySelectorAll('.quiz-opt-btn');
+      if (buttons && buttons[idx] && !buttons[idx].disabled) {
+        e.preventDefault();
+        buttons[idx].click();
+      }
+    }
+  });
 }
 
 function resetQuizState() {
+  if (quizSession.autoAdvanceTimeout) {
+    clearTimeout(quizSession.autoAdvanceTimeout);
+    quizSession.autoAdvanceTimeout = null;
+  }
   clearInterval(quizSession.timerInterval);
   document.getElementById('quiz-play-container').style.display = 'none';
   document.getElementById('quiz-result-container').style.display = 'none';
@@ -84,11 +121,9 @@ function startQuiz() {
     pool = pool.slice(0, 20);
   } else if (segmentVal === '2') {
     pool = pool.slice(20, 40);
-  } else if (segmentVal === '3') {
-    pool = pool.slice(40, 60);
   }
 
-  if (pool.length < 4 && mode === 'choice') {
+  if (pool.length < 4 && (mode === 'choice' || mode === 'collocation')) {
     alert("퀴즈를 실행할 단어가 충분하지 않습니다. (최소 4개 이상 필요)\n새 단어를 추가하시거나 레벨 설정을 넓혀보세요.");
     return;
   }
@@ -103,7 +138,6 @@ function startQuiz() {
   // Build structure of questions
   quizSession.mode = mode;
   quizSession.questions = selected.map(wordItem => {
-    // Generate distractors if multiple choice mode
     let options = [];
     if (mode === 'choice') {
       options.push(wordItem.definition);
@@ -130,6 +164,25 @@ function startQuiz() {
 
       // Shuffle complete choices options
       options = options.sort(() => Math.random() - 0.5);
+    } else if (mode === 'collocation') {
+      options.push(wordItem.word);
+
+      // Prefer same POS distractors if available, otherwise any other word
+      const samePos = words.filter(w => w.id !== wordItem.id && w.pos === wordItem.pos).map(w => w.word);
+      const otherPos = words.filter(w => w.id !== wordItem.id && w.pos !== wordItem.pos).map(w => w.word);
+      const candidateDistractors = [...new Set([...samePos.sort(() => Math.random() - 0.5), ...otherPos.sort(() => Math.random() - 0.5)])];
+
+      let countAdded = 0;
+      for (let i = 0; i < candidateDistractors.length && countAdded < 3; i++) {
+        if (candidateDistractors[i].toLowerCase() !== wordItem.word.toLowerCase()) {
+          options.push(candidateDistractors[i]);
+          countAdded++;
+        }
+      }
+      while (options.length < 4) {
+        options.push("단어 " + (options.length + 1));
+      }
+      options = options.sort(() => Math.random() - 0.5);
     }
 
     return {
@@ -145,6 +198,11 @@ function startQuiz() {
   quizSession.score = 0;
   quizSession.wrongWords = [];
   quizSession.startTime = Date.now();
+  quizSession.attemptsForQuestion = 0;
+  if (quizSession.autoAdvanceTimeout) {
+    clearTimeout(quizSession.autoAdvanceTimeout);
+    quizSession.autoAdvanceTimeout = null;
+  }
 
   // Show active display card
   document.getElementById('quiz-setup-container').style.display = 'none';
@@ -166,6 +224,12 @@ function startQuiz() {
 }
 
 function renderQuizQuestion() {
+  if (quizSession.autoAdvanceTimeout) {
+    clearTimeout(quizSession.autoAdvanceTimeout);
+    quizSession.autoAdvanceTimeout = null;
+  }
+  quizSession.attemptsForQuestion = 0;
+
   const currentIdx = quizSession.currentIndex;
   const totalQuestions = quizSession.questions.length;
   const q = quizSession.questions[currentIdx];
@@ -201,20 +265,54 @@ function renderQuizQuestion() {
     // Show word, choose translation
     questionWord.style.visibility = 'visible';
     questionWord.textContent = q.word;
-    questionHintText.textContent = "이 단어의 알맞은 한글 뜻을 선택하세요.";
+    questionHintText.innerHTML = "이 단어의 알맞은 한글 뜻을 선택하세요.";
     
     document.getElementById('quiz-options-container').style.display = 'grid';
     
     // Distribute multiple choice answer cards
-    q.options.forEach((optText) => {
+    q.options.forEach((optText, idx) => {
       const btn = document.createElement('button');
       btn.className = 'quiz-opt-btn';
-      btn.innerHTML = `<span>${optText}</span>`;
+      btn.innerHTML = `<span class="opt-num-badge">${idx + 1}</span> <span class="opt-text">${optText}</span>`;
       btn.addEventListener('click', () => selectChoiceOption(btn, optText));
       document.getElementById('quiz-options-container').appendChild(btn);
     });
 
     speakWord(q.word);
+  } else if (quizSession.mode === 'collocation') {
+    // Collocation Cloze mode: display blanked phrase
+    questionWord.style.visibility = 'visible';
+    
+    // Build cloze HTML with styled blank
+    let clozeText = q.rawItem.cloze;
+    if (!clozeText && q.rawItem.example) {
+      clozeText = q.rawItem.example.replace(new RegExp('\\b' + escapeRegExp(q.word) + '\\b', 'gi'), '_______');
+    }
+    if (!clozeText) clozeText = '_______';
+    
+    questionWord.innerHTML = clozeText.replace('_______', `<span class="quiz-blank-highlight pulse" id="active-quiz-blank">_______</span>`);
+    
+    // Hint text with POS, <<Korean>>, and Korean sentence translation
+    let hintHtml = `<span class="pos-tag">[${q.rawItem.pos}]</span> <strong>&lt;&lt;${q.rawItem.definition}&gt;&gt;</strong>`;
+    if (q.rawItem.exampleTranslation) {
+      hintHtml += ` &bull; <span class="trans-sub">"${q.rawItem.exampleTranslation}"</span>`;
+    }
+    if (q.rawItem.synonym) {
+      hintHtml += ` &bull; <span class="syn-sub">유의어: ${q.rawItem.synonym}</span>`;
+    }
+    questionHintText.innerHTML = hintHtml;
+
+    document.getElementById('quiz-options-container').style.display = 'grid';
+
+    // 4 English word options
+    q.options.forEach((optText, idx) => {
+      const btn = document.createElement('button');
+      btn.className = 'quiz-opt-btn quiz-opt-collocation';
+      btn.innerHTML = `<span class="opt-num-badge">${idx + 1}</span> <span class="opt-text">${optText}</span>`;
+      btn.addEventListener('click', () => selectChoiceOption(btn, optText));
+      document.getElementById('quiz-options-container').appendChild(btn);
+    });
+
   } else {
     // Spelling input mode: hide spelling word, show translation, listen sound
     questionWord.style.visibility = 'hidden';
@@ -235,30 +333,84 @@ function selectChoiceOption(selectedBtn, selectedText) {
   const q = quizSession.questions[quizSession.currentIndex];
   const optionButtons = document.querySelectorAll('.quiz-opt-btn');
 
-  // Disable further choice clicks
-  optionButtons.forEach(btn => btn.disabled = true);
+  quizSession.attemptsForQuestion = (quizSession.attemptsForQuestion || 0) + 1;
+  const isCorrect = (selectedText.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase());
 
-  const isCorrect = (selectedText === q.correctAnswer);
-  
   if (isCorrect) {
-    quizSession.score++;
+    // --- 정답 처리 ---
+    // 모든 버튼 비활성화 (추가 클릭 방지)
+    optionButtons.forEach(btn => btn.disabled = true);
     selectedBtn.classList.add('correct');
-    showQuizFeedback(true, "정답입니다!", "완벽해요, 계속 나아갑시다!");
-  } else {
-    selectedBtn.classList.add('incorrect');
-    quizSession.wrongWords.push(q.rawItem);
-    addIncorrectWord(q.rawItem.id);
+    quizSession.score++;
 
-    // Show correct option button glow
-    optionButtons.forEach(btn => {
-      if (btn.querySelector('span').textContent === q.correctAnswer) {
-        btn.classList.add('correct');
+    if (quizSession.mode === 'collocation') {
+      const blank = document.getElementById('active-quiz-blank');
+      if (blank) {
+        blank.classList.remove('pulse', 'shake');
+        blank.classList.add('correct');
+        blank.textContent = selectedText;
       }
-    });
-    showQuizFeedback(false, "오답입니다", `정답은 "${q.correctAnswer}" 입니다.`);
-  }
+      // 예문 전체 발음 재생
+      if (q.rawItem.example) {
+        speakWord(q.rawItem.example);
+      }
+      
+      const praise = quizSession.attemptsForQuestion === 1 ? "정답입니다! 🎉" : "정답입니다! (2차 시도 성공 👏)";
+      showQuizFeedback(true, praise, q.rawItem.example ? `"${q.rawItem.example}"` : "완벽해요!");
+      document.getElementById('quiz-next-btn').style.display = 'inline-flex';
 
-  document.getElementById('quiz-next-btn').style.display = 'inline-flex';
+    } else {
+      // 일반 객관식 모드
+      const praise = quizSession.attemptsForQuestion === 1 ? "정답입니다!" : "정답입니다! (재시도 성공)";
+      showQuizFeedback(true, praise, "완벽해요, 계속 나아갑시다!");
+      document.getElementById('quiz-next-btn').style.display = 'inline-flex';
+    }
+
+  } else {
+    // --- 오답 처리 ---
+    selectedBtn.classList.add('incorrect');
+    selectedBtn.disabled = true; // 오답 선택한 버튼만 비활성화
+
+    if (quizSession.attemptsForQuestion < 2) {
+      // 1번째 오답: 2번까지 기회를 제공!
+      if (quizSession.mode === 'collocation') {
+        const blank = document.getElementById('active-quiz-blank');
+        if (blank) {
+          blank.classList.add('shake');
+          setTimeout(() => blank.classList.remove('shake'), 450);
+        }
+      }
+      showQuizFeedback(false, "아쉬워요! 한 번 더 기회가 있어요 (1회 남음)", "다른 보기를 다시 골라보세요! 💡");
+
+    } else {
+      // 2번째 오답: 기회 모두 소진, 정답 공개 및 오답 처리
+      optionButtons.forEach(btn => btn.disabled = true);
+      quizSession.wrongWords.push(q.rawItem);
+      addIncorrectWord(q.rawItem.id);
+
+      // 정답 버튼 초록색 강조
+      optionButtons.forEach(btn => {
+        const textSpan = btn.querySelector('.opt-text') || btn.querySelector('span');
+        if (textSpan && textSpan.textContent.trim().toLowerCase() === q.correctAnswer.trim().toLowerCase()) {
+          btn.classList.add('correct');
+        }
+      });
+
+      if (quizSession.mode === 'collocation') {
+        const blank = document.getElementById('active-quiz-blank');
+        if (blank) {
+          blank.innerHTML = `<span class="user-wrong-answer">${selectedText}</span> <span class="arrow">&rarr;</span> <span class="correct-answer">${q.correctAnswer}</span>`;
+          blank.classList.add('incorrect');
+        }
+        showQuizFeedback(false, "기회 소진", `정답은 "${q.correctAnswer}" 입니다. (${q.rawItem.example || ''})`);
+        document.getElementById('quiz-next-btn').style.display = 'inline-flex';
+
+      } else {
+        showQuizFeedback(false, "기회 소진", `정답은 "${q.correctAnswer}" 입니다.`);
+        document.getElementById('quiz-next-btn').style.display = 'inline-flex';
+      }
+    }
+  }
 }
 
 function checkSpellingAnswer() {
@@ -279,13 +431,13 @@ function checkSpellingAnswer() {
   if (isCorrect) {
     quizSession.score++;
     showQuizFeedback(true, "정답입니다!", "정확한 철자입니다!");
+    document.getElementById('quiz-next-btn').style.display = 'inline-flex';
   } else {
     quizSession.wrongWords.push(q.rawItem);
     addIncorrectWord(q.rawItem.id);
     showQuizFeedback(false, "오답입니다", `정답은 "${q.word}" 입니다.`);
+    document.getElementById('quiz-next-btn').style.display = 'inline-flex';
   }
-
-  document.getElementById('quiz-next-btn').style.display = 'inline-flex';
 }
 
 function showQuizFeedback(correct, title, desc) {
@@ -306,6 +458,11 @@ function showQuizFeedback(correct, title, desc) {
 }
 
 function loadNextQuestion() {
+  if (quizSession.autoAdvanceTimeout) {
+    clearTimeout(quizSession.autoAdvanceTimeout);
+    quizSession.autoAdvanceTimeout = null;
+  }
+
   quizSession.currentIndex++;
 
   if (quizSession.currentIndex >= quizSession.questions.length) {

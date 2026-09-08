@@ -69,6 +69,15 @@ function setupDictation() {
       }
     });
   }
+
+  const dashboardBtn = document.getElementById('dictation-dashboard-btn');
+  if (dashboardBtn) {
+    dashboardBtn.addEventListener('click', () => {
+      resetDictationState();
+      const navBtn = document.querySelector('[data-target="dashboard-tab"]');
+      if (navBtn) navBtn.click();
+    });
+  }
 }
 
 function resetDictationState() {
@@ -120,8 +129,6 @@ function startDictation() {
     filtered = filtered.slice(0, 20);
   } else if (segmentVal === '2') {
     filtered = filtered.slice(20, 40);
-  } else if (segmentVal === '3') {
-    filtered = filtered.slice(40, 60);
   }
 
   if (filtered.length === 0) {

@@ -1979,3 +1979,143 @@ body {
   }
 }
 
+/* ==========================================================================
+   Collocation Cloze Game & Flashcard Enhancements
+   ========================================================================== */
+
+.quiz-blank-highlight {
+  display: inline-block;
+  min-width: 140px;
+  padding: 2px 14px;
+  margin: 0 6px;
+  border-bottom: 3px solid var(--color-primary);
+  border-radius: 6px;
+  background: rgba(99, 102, 241, 0.12);
+  color: #a5b4fc;
+  font-weight: 700;
+  letter-spacing: 1px;
+  transition: all 0.25s ease;
+  vertical-align: baseline;
+}
+
+.quiz-blank-highlight.pulse {
+  animation: blankPulse 1.8s ease-in-out infinite;
+}
+
+@keyframes blankPulse {
+  0%, 100% {
+    background: rgba(99, 102, 241, 0.12);
+    border-color: rgba(99, 102, 241, 0.7);
+  }
+  50% {
+    background: rgba(99, 102, 241, 0.28);
+    border-color: rgba(99, 102, 241, 1);
+    box-shadow: 0 0 16px rgba(99, 102, 241, 0.35);
+  }
+}
+
+.quiz-blank-highlight.correct {
+  background: rgba(16, 185, 129, 0.2) !important;
+  border-color: #10b981 !important;
+  color: #10b981 !important;
+  box-shadow: 0 0 16px rgba(16, 185, 129, 0.3);
+  transform: scale(1.04);
+}
+
+.quiz-blank-highlight.incorrect {
+  background: rgba(239, 68, 68, 0.2) !important;
+  border-color: #ef4444 !important;
+  color: #ef4444 !important;
+  box-shadow: 0 0 16px rgba(239, 68, 68, 0.3);
+}
+
+.user-wrong-answer {
+  color: #ef4444;
+  text-decoration: line-through;
+  margin-right: 6px;
+}
+
+.correct-answer {
+  color: #10b981;
+  font-weight: 700;
+}
+
+.quiz-opt-btn .opt-num-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-muted);
+  margin-right: 12px;
+  flex-shrink: 0;
+  transition: all 0.2s ease;
+}
+
+.quiz-opt-btn:hover .opt-num-badge {
+  background: var(--color-primary);
+  color: white;
+  border-color: var(--color-primary);
+}
+
+.quiz-opt-btn .opt-text {
+  flex-grow: 1;
+  text-align: left;
+}
+
+.quiz-opt-collocation {
+  font-size: 17px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+}
+
+.trans-sub {
+  color: var(--text-muted);
+  font-style: italic;
+  font-weight: 400;
+}
+
+.syn-sub {
+  color: #38bdf8;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.synonym-tag {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  padding: 3px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+  margin-left: 8px;
+}
+
+.highlight-word {
+  color: #818cf8;
+  font-weight: 800;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+}
+
+.quiz-blank-highlight.shake {
+  animation: blankShake 0.45s ease-in-out;
+  border-color: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.18) !important;
+  color: #f87171 !important;
+}
+
+@keyframes blankShake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-7px); }
+  40%, 80% { transform: translateX(7px); }
+}
+
