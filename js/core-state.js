@@ -3,7 +3,7 @@
  */
 
 // --- State Configurations ---
-const DB_VERSION = "2026.09.09";
+const DB_VERSION = "2026.09.21";
 let words = [];
 let streak = 0;
 let lastStudyDate = null;
