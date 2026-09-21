@@ -12,10 +12,17 @@ function setupQuiz() {
     });
   }
 
+  const unitSelect = document.getElementById('quiz-unit-select');
+  if (unitSelect) {
+    unitSelect.addEventListener('change', () => {
+      updateLessonFilters('quiz');
+    });
+  }
+
   const lessonSelect = document.getElementById('quiz-lesson-select');
   if (lessonSelect) {
     lessonSelect.addEventListener('change', () => {
-      updateSegmentFiltersVisibility('quiz');
+      updateSegmentFilters('quiz');
     });
   }
 
@@ -101,26 +108,38 @@ function resetQuizState() {
 function startQuiz() {
   const mode = document.getElementById('quiz-mode-select').value;
   const level = document.getElementById('quiz-level-select').value;
+  const unitVal = document.getElementById('quiz-unit-select')?.value || 'all';
   const lesson = document.getElementById('quiz-lesson-select').value;
   const count = parseInt(document.getElementById('quiz-count-select').value);
 
   // Filter pool
   let pool = [...words];
-  if (level !== 'all') {
+  if (level === 'Par C2') {
+    pool = pool.filter(w => w.level === 'Par C2');
+    if (unitVal !== 'all') {
+      pool = pool.filter(w => getWordUnit(w) === unitVal);
+    }
+    if (lesson !== 'all') {
+      pool = pool.filter(w => getWordLesson(w) === lesson || w.lesson === lesson);
+    }
+  } else if (level !== 'all') {
     pool = pool.filter(w => w.level === level);
-  }
-  if (lesson !== 'all') {
-    pool = pool.filter(w => w.lesson === lesson);
+    if (lesson !== 'all') {
+      pool = pool.filter(w => w.lesson === lesson);
+    }
   }
 
   // Ensure sorted index by ID
   pool.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' }));
   
+  // Apply segment slicing (단어가 30개인 경우 15개씩 분할)
   const segmentVal = document.getElementById('quiz-segment-select').value;
-  if (segmentVal === '1') {
-    pool = pool.slice(0, 20);
-  } else if (segmentVal === '2') {
-    pool = pool.slice(20, 40);
+  if (segmentVal !== 'all') {
+    const segNum = parseInt(segmentVal, 10);
+    const segSize = pool.length === 30 ? 15 : 20;
+    if (!isNaN(segNum) && segNum > 0) {
+      pool = pool.slice((segNum - 1) * segSize, segNum * segSize);
+    }
   }
 
   if (pool.length < 4 && (mode === 'choice' || mode === 'collocation')) {

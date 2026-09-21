@@ -9,9 +9,17 @@ function setupStudy() {
     initStudySession();
   });
 
+  const unitFilterSelect = document.getElementById('study-unit-filter');
+  if (unitFilterSelect) {
+    unitFilterSelect.addEventListener('change', () => {
+      updateLessonFilters('study');
+      initStudySession();
+    });
+  }
+
   const lessonFilterSelect = document.getElementById('study-lesson-filter');
   lessonFilterSelect.addEventListener('change', () => {
-    updateSegmentFiltersVisibility('study');
+    updateSegmentFilters('study');
     initStudySession();
   });
 
@@ -171,6 +179,7 @@ function setupStudy() {
 
 function initStudySession() {
   const filterVal = document.getElementById('study-level-filter').value;
+  const unitVal = document.getElementById('study-unit-filter')?.value || 'all';
   const lessonVal = document.getElementById('study-lesson-filter').value;
   const now = Date.now();
   
@@ -180,24 +189,32 @@ function initStudySession() {
     filtered = words.filter(w => !w.nextReview || w.nextReview <= now);
   } else if (filterVal === 'all') {
     filtered = [...words];
+  } else if (filterVal === 'Par C2') {
+    filtered = words.filter(w => w.level === 'Par C2');
+    if (unitVal !== 'all') {
+      filtered = filtered.filter(w => getWordUnit(w) === unitVal);
+    }
+    if (lessonVal !== 'all') {
+      filtered = filtered.filter(w => getWordLesson(w) === lessonVal || w.lesson === lessonVal);
+    }
   } else {
     // Filter by specific level and optionally lesson
-    if (lessonVal === 'all') {
-      filtered = words.filter(w => w.level === filterVal);
-    } else {
-      filtered = words.filter(w => w.level === filterVal && w.lesson === lessonVal);
+    filtered = words.filter(w => w.level === filterVal);
+    if (lessonVal !== 'all') {
+      filtered = filtered.filter(w => w.lesson === lessonVal);
     }
   }
 
   // Ensure sorted index by ID
   filtered.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' }));
   
-  // Apply segment slicing
+  // Apply segment slicing (단어가 30개인 경우 15개씩 분할)
   const segmentVal = document.getElementById('study-segment-filter').value;
   if (segmentVal !== 'all') {
     const segNum = parseInt(segmentVal, 10);
+    const segSize = filtered.length === 30 ? 15 : 20;
     if (!isNaN(segNum) && segNum > 0) {
-      filtered = filtered.slice((segNum - 1) * 20, segNum * 20);
+      filtered = filtered.slice((segNum - 1) * segSize, segNum * segSize);
     }
   }
 
@@ -230,6 +247,12 @@ function initStudySession() {
         scopeEl.textContent = '오늘 복습할 단어만';
       } else if (filterVal === 'all') {
         scopeEl.textContent = '전체 보관 단어';
+      } else if (filterVal === 'Par C2') {
+        let scope = 'Par C2';
+        if (unitVal !== 'all') scope += ` — ${unitVal}`;
+        if (lessonVal !== 'all') scope += ` ${lessonVal}`;
+        else if (unitVal === 'all') scope += ' (전체)';
+        scopeEl.textContent = scope;
       } else {
         scopeEl.textContent = lessonVal === 'all' ? `${filterVal} (전체 레슨)` : `${filterVal} — ${lessonVal}`;
       }

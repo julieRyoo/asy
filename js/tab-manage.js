@@ -16,6 +16,14 @@ function setupManage() {
     });
   }
 
+  const unitFilter = document.getElementById('manage-unit-filter');
+  if (unitFilter) {
+    unitFilter.addEventListener('change', () => {
+      updateLessonFilters('manage');
+      renderManageTable();
+    });
+  }
+
   const lessonFilter = document.getElementById('manage-lesson-filter');
   if (lessonFilter) {
     lessonFilter.addEventListener('change', renderManageTable);
@@ -45,6 +53,7 @@ function resetBoxes() {
 function renderManageTable() {
   const searchQuery = document.getElementById('manage-search').value.toLowerCase().trim();
   const levelFilter = document.getElementById('manage-level-filter').value;
+  const unitFilter = document.getElementById('manage-unit-filter')?.value || 'all';
   const lessonFilter = document.getElementById('manage-lesson-filter').value;
   const boxFilter = document.getElementById('manage-box-filter').value;
 
@@ -55,10 +64,23 @@ function renderManageTable() {
                         w.definition.includes(searchQuery) ||
                         w.pos.toLowerCase().includes(searchQuery);
     const levelMatch = (levelFilter === 'all' || w.level === levelFilter);
-    const lessonMatch = (levelFilter === 'all' || lessonFilter === 'all' || w.lesson === lessonFilter);
+    
+    let unitMatch = true;
+    let lessonMatch = true;
+    if (levelFilter === 'Par C2') {
+      if (unitFilter !== 'all') {
+        unitMatch = (getWordUnit(w) === unitFilter);
+      }
+      if (lessonFilter !== 'all') {
+        lessonMatch = (getWordLesson(w) === lessonFilter || w.lesson === lessonFilter);
+      }
+    } else if (levelFilter !== 'all') {
+      lessonMatch = (lessonFilter === 'all' || w.lesson === lessonFilter);
+    }
+
     const boxMatch = (boxFilter === 'all' || String(w.box) === boxFilter);
 
-    return searchMatch && levelMatch && lessonMatch && boxMatch;
+    return searchMatch && levelMatch && unitMatch && lessonMatch && boxMatch;
   });
 
   const wrapper = document.querySelector('.words-table-wrapper');

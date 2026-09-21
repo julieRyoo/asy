@@ -135,6 +135,12 @@
               <option value="all">전체 보관 단어</option>
             </select>
           </div>
+          <div class="study-filter" id="study-unit-filter-container" style="display: none;">
+            <label for="study-unit-filter">유닛:</label>
+            <select id="study-unit-filter" class="select-input">
+              <option value="all">전체 유닛</option>
+            </select>
+          </div>
           <div class="study-filter" id="study-lesson-filter-container" style="display: none;">
             <label for="study-lesson-filter">레슨:</label>
             <select id="study-lesson-filter" class="select-input">
@@ -292,6 +298,12 @@
                 <option value="all">전체 레벨</option>
               </select>
             </div>
+            <div class="form-group" id="quiz-unit-select-container" style="display: none;">
+              <label for="quiz-unit-select">유닛 필터</label>
+              <select id="quiz-unit-select" class="select-input">
+                <option value="all">전체 유닛</option>
+              </select>
+            </div>
             <div class="form-group" id="quiz-lesson-select-container" style="display: none;">
               <label for="quiz-lesson-select">레슨 필터</label>
               <select id="quiz-lesson-select" class="select-input">
@@ -433,6 +445,12 @@
               </select>
             </div>
 
+            <div class="form-group" id="dictation-unit-filter-container" style="display: none;">
+              <label for="dictation-unit-filter">유닛 선택</label>
+              <select id="dictation-unit-filter" class="select-input">
+                <option value="all">전체 유닛</option>
+              </select>
+            </div>
             <div class="form-group" id="dictation-lesson-filter-container" style="display: none;">
               <label for="dictation-lesson-filter">레슨 선택</label>
               <select id="dictation-lesson-filter" class="select-input">
@@ -564,6 +582,9 @@
             </div>
             <select id="manage-level-filter" class="select-input">
               <option value="all">모든 레벨</option>
+            </select>
+            <select id="manage-unit-filter" class="select-input" style="display: none;">
+              <option value="all">모든 유닛</option>
             </select>
             <select id="manage-lesson-filter" class="select-input" style="display: none;">
               <option value="all">모든 레슨</option>

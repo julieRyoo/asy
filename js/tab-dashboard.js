@@ -327,11 +327,19 @@ function renderDashboardLessons() {
       // Go to study tab
       document.getElementById('study-level-filter').value = targetLvl;
       updateLessonFilters('study');
-      document.getElementById('study-lesson-filter').value = targetLsn;
+      if (targetLvl === 'Par C2') {
+        const u = getWordUnit({lesson: targetLsn});
+        const l = getWordLesson({lesson: targetLsn, level: 'Par C2'});
+        if (u) document.getElementById('study-unit-filter').value = u;
+        updateLessonFilters('study');
+        if (l) document.getElementById('study-lesson-filter').value = l;
+      } else {
+        document.getElementById('study-lesson-filter').value = targetLsn;
+      }
       
       const studySeg = document.getElementById('study-segment-filter');
       if (studySeg) studySeg.value = 'all';
-      updateSegmentFiltersVisibility('study');
+      updateSegmentFilters('study');
       
       document.getElementById('nav-study-btn').click();
       initStudySession();
@@ -344,11 +352,19 @@ function renderDashboardLessons() {
       // Select Level & Lesson in Quiz tab
       document.getElementById('quiz-level-select').value = targetLvl;
       updateLessonFilters('quiz');
-      document.getElementById('quiz-lesson-select').value = targetLsn;
+      if (targetLvl === 'Par C2') {
+        const u = getWordUnit({lesson: targetLsn});
+        const l = getWordLesson({lesson: targetLsn, level: 'Par C2'});
+        if (u) document.getElementById('quiz-unit-select').value = u;
+        updateLessonFilters('quiz');
+        if (l) document.getElementById('quiz-lesson-select').value = l;
+      } else {
+        document.getElementById('quiz-lesson-select').value = targetLsn;
+      }
       
       const quizSeg = document.getElementById('quiz-segment-select');
       if (quizSeg) quizSeg.value = 'all';
-      updateSegmentFiltersVisibility('quiz');
+      updateSegmentFilters('quiz');
       
       // Go to quiz tab
       const navButtons = document.querySelectorAll('.nav-btn');
@@ -364,14 +380,22 @@ function renderDashboardLessons() {
       
       document.getElementById('quiz-level-select').value = targetLvl;
       updateLessonFilters('quiz');
-      document.getElementById('quiz-lesson-select').value = targetLsn;
+      if (targetLvl === 'Par C2') {
+        const u = getWordUnit({lesson: targetLsn});
+        const l = getWordLesson({lesson: targetLsn, level: 'Par C2'});
+        if (u) document.getElementById('quiz-unit-select').value = u;
+        updateLessonFilters('quiz');
+        if (l) document.getElementById('quiz-lesson-select').value = l;
+      } else {
+        document.getElementById('quiz-lesson-select').value = targetLsn;
+      }
       
       const modeSelect = document.getElementById('quiz-mode-select');
       if (modeSelect) modeSelect.value = 'collocation';
       
       const quizSeg = document.getElementById('quiz-segment-select');
       if (quizSeg) quizSeg.value = 'all';
-      updateSegmentFiltersVisibility('quiz');
+      updateSegmentFilters('quiz');
       
       const navButtons = document.querySelectorAll('.nav-btn');
       const quizNavBtn = Array.from(navButtons).find(btn => btn.getAttribute('data-target') === 'quiz-tab');

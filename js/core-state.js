@@ -281,90 +281,260 @@ function updateLevelFilters() {
   updateLessonFilters('manage');
 }
 
+function getWordUnit(word) {
+  if (!word || !word.lesson) return null;
+  const match = word.lesson.match(/Unit\s*\d+/i);
+  return match ? match[0] : null;
+}
+
+function getWordLesson(word) {
+  if (!word || !word.lesson) return null;
+  if (word.level === 'Par C2') {
+    const match = word.lesson.match(/Lesson\s*\d+/i);
+    return match ? match[0] : word.lesson;
+  }
+  return word.lesson;
+}
+
 function updateLessonFilters(tabType) {
   let levelVal = '';
+  let unitFilterElement = null;
+  let unitContainer = null;
   let lessonFilterElement = null;
-  let containerElement = null;
+  let lessonContainer = null;
 
   if (tabType === 'study') {
     levelVal = document.getElementById('study-level-filter').value;
+    unitFilterElement = document.getElementById('study-unit-filter');
+    unitContainer = document.getElementById('study-unit-filter-container');
     lessonFilterElement = document.getElementById('study-lesson-filter');
-    containerElement = document.getElementById('study-lesson-filter-container');
+    lessonContainer = document.getElementById('study-lesson-filter-container');
   } else if (tabType === 'quiz') {
     levelVal = document.getElementById('quiz-level-select').value;
+    unitFilterElement = document.getElementById('quiz-unit-select');
+    unitContainer = document.getElementById('quiz-unit-select-container');
     lessonFilterElement = document.getElementById('quiz-lesson-select');
-    containerElement = document.getElementById('quiz-lesson-select-container');
+    lessonContainer = document.getElementById('quiz-lesson-select-container');
   } else if (tabType === 'dictation') {
     levelVal = document.getElementById('dictation-level-filter').value;
+    unitFilterElement = document.getElementById('dictation-unit-filter');
+    unitContainer = document.getElementById('dictation-unit-filter-container');
     lessonFilterElement = document.getElementById('dictation-lesson-filter');
-    containerElement = document.getElementById('dictation-lesson-filter-container');
+    lessonContainer = document.getElementById('dictation-lesson-filter-container');
   } else if (tabType === 'manage') {
     levelVal = document.getElementById('manage-level-filter').value;
+    unitFilterElement = document.getElementById('manage-unit-filter');
+    unitContainer = null;
     lessonFilterElement = document.getElementById('manage-lesson-filter');
-    containerElement = null; // show/hide handled via style directly in code below
+    lessonContainer = null;
   }
 
   if (!lessonFilterElement) return;
 
   if (levelVal === 'due' || levelVal === 'all') {
-    // Hide lesson dropdown
-    if (containerElement) {
-      containerElement.style.display = 'none';
-    } else if (tabType === 'manage' && lessonFilterElement) {
-      lessonFilterElement.style.display = 'none';
-    }
-    updateSegmentFiltersVisibility(tabType);
+    // Hide unit and lesson dropdowns
+    if (unitContainer) unitContainer.style.display = 'none';
+    if (unitFilterElement && tabType === 'manage') unitFilterElement.style.display = 'none';
+    if (lessonContainer) lessonContainer.style.display = 'none';
+    if (tabType === 'manage' && lessonFilterElement) lessonFilterElement.style.display = 'none';
+    
+    updateSegmentFilters(tabType);
     return;
   }
 
-  // Show lesson dropdown and populate lessons belonging to selected level
-  if (containerElement) {
-    containerElement.style.display = 'flex';
-  } else if (tabType === 'manage') {
-    lessonFilterElement.style.display = 'inline-block';
-  }
+  if (levelVal === 'Par C2') {
+    // Show Unit dropdown first
+    if (unitContainer) {
+      unitContainer.style.display = 'flex';
+    } else if (tabType === 'manage' && unitFilterElement) {
+      unitFilterElement.style.display = 'inline-block';
+    }
 
-  // Find unique lessons for this level
-  const relatedWords = words.filter(w => w.level === levelVal);
-  
-  // Sort lessons based on alphanumeric ordering (ascending)
-  const uniqueLessons = Array.from(new Set(relatedWords.map(w => w.lesson))).filter(Boolean).sort((a, b) => {
-    return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
-  });
+    // Populate unique units (e.g. Unit 1, Unit 2)
+    const c2Words = words.filter(w => w.level === 'Par C2');
+    const uniqueUnits = Array.from(new Set(c2Words.map(w => getWordUnit(w)))).filter(Boolean).sort((a, b) => {
+      return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+    });
 
-  const prevValue = lessonFilterElement.value;
-  lessonFilterElement.innerHTML = `<option value="all">전체 레슨</option>`;
-  
-  uniqueLessons.forEach(lsn => {
-    lessonFilterElement.innerHTML += `<option value="${lsn}">${lsn}</option>`;
-  });
+    if (unitFilterElement) {
+      const prevUnit = unitFilterElement.value;
+      unitFilterElement.innerHTML = `<option value="all">전체 유닛</option>`;
+      uniqueUnits.forEach(u => {
+        unitFilterElement.innerHTML += `<option value="${u}">${u}</option>`;
+      });
+      if ([...unitFilterElement.options].some(opt => opt.value === prevUnit)) {
+        unitFilterElement.value = prevUnit;
+      } else {
+        unitFilterElement.value = 'all';
+      }
+    }
 
-  if ([...lessonFilterElement.options].some(opt => opt.value === prevValue)) {
-    lessonFilterElement.value = prevValue;
+    // Show Lesson dropdown second
+    if (lessonContainer) {
+      lessonContainer.style.display = 'flex';
+    } else if (tabType === 'manage') {
+      lessonFilterElement.style.display = 'inline-block';
+    }
+
+    const currentUnit = unitFilterElement ? unitFilterElement.value : 'all';
+    let unitRelatedWords = c2Words;
+    if (currentUnit !== 'all') {
+      unitRelatedWords = c2Words.filter(w => getWordUnit(w) === currentUnit);
+    }
+
+    const uniqueLessons = Array.from(new Set(unitRelatedWords.map(w => getWordLesson(w)))).filter(Boolean).sort((a, b) => {
+      return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+    });
+
+    const prevLesson = lessonFilterElement.value;
+    lessonFilterElement.innerHTML = `<option value="all">전체 레슨</option>`;
+    uniqueLessons.forEach(lsn => {
+      lessonFilterElement.innerHTML += `<option value="${lsn}">${lsn}</option>`;
+    });
+
+    if ([...lessonFilterElement.options].some(opt => opt.value === prevLesson)) {
+      lessonFilterElement.value = prevLesson;
+    } else {
+      lessonFilterElement.value = 'all';
+    }
+
   } else {
-    lessonFilterElement.value = 'all';
+    // Non-C2 levels (e.g. Par C1) -> Hide unit filter, show lesson filter
+    if (unitContainer) unitContainer.style.display = 'none';
+    if (unitFilterElement && tabType === 'manage') unitFilterElement.style.display = 'none';
+
+    if (lessonContainer) {
+      lessonContainer.style.display = 'flex';
+    } else if (tabType === 'manage') {
+      lessonFilterElement.style.display = 'inline-block';
+    }
+
+    const relatedWords = words.filter(w => w.level === levelVal);
+    const uniqueLessons = Array.from(new Set(relatedWords.map(w => w.lesson))).filter(Boolean).sort((a, b) => {
+      return a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' });
+    });
+
+    const prevValue = lessonFilterElement.value;
+    lessonFilterElement.innerHTML = `<option value="all">전체 레슨</option>`;
+    uniqueLessons.forEach(lsn => {
+      lessonFilterElement.innerHTML += `<option value="${lsn}">${lsn}</option>`;
+    });
+
+    if ([...lessonFilterElement.options].some(opt => opt.value === prevValue)) {
+      lessonFilterElement.value = prevValue;
+    } else {
+      lessonFilterElement.value = 'all';
+    }
   }
 
-  updateSegmentFiltersVisibility(tabType);
+  updateSegmentFilters(tabType);
+}
+
+function updateSegmentFilters(tabType) {
+  let levelVal = '';
+  let unitVal = 'all';
+  let lessonVal = 'all';
+  let segmentSelect = null;
+  let segmentContainer = null;
+
+  if (tabType === 'study') {
+    levelVal = document.getElementById('study-level-filter').value;
+    const unitEl = document.getElementById('study-unit-filter');
+    unitVal = unitEl ? unitEl.value : 'all';
+    lessonVal = document.getElementById('study-lesson-filter').value;
+    segmentSelect = document.getElementById('study-segment-filter');
+    segmentContainer = document.getElementById('study-segment-filter-container');
+  } else if (tabType === 'quiz') {
+    levelVal = document.getElementById('quiz-level-select').value;
+    const unitEl = document.getElementById('quiz-unit-select');
+    unitVal = unitEl ? unitEl.value : 'all';
+    lessonVal = document.getElementById('quiz-lesson-select').value;
+    segmentSelect = document.getElementById('quiz-segment-select');
+    segmentContainer = document.getElementById('quiz-segment-select-container');
+  } else if (tabType === 'dictation') {
+    levelVal = document.getElementById('dictation-level-filter').value;
+    const unitEl = document.getElementById('dictation-unit-filter');
+    unitVal = unitEl ? unitEl.value : 'all';
+    lessonVal = document.getElementById('dictation-lesson-filter').value;
+    segmentSelect = document.getElementById('dictation-segment-filter');
+    segmentContainer = document.getElementById('dictation-segment-filter-container');
+  }
+
+  if (segmentContainer) {
+    segmentContainer.style.display = tabType === 'study' ? 'flex' : 'block';
+  }
+
+  if (!segmentSelect) return;
+
+  // Calculate matching word pool to determine segment chunk size
+  let pool = [...words];
+  if (levelVal === 'due') {
+    const now = Date.now();
+    pool = pool.filter(w => !w.nextReview || w.nextReview <= now);
+  } else if (levelVal !== 'all') {
+    pool = pool.filter(w => w.level === levelVal);
+    if (levelVal === 'Par C2') {
+      if (unitVal !== 'all') {
+        pool = pool.filter(w => getWordUnit(w) === unitVal);
+      }
+      if (lessonVal !== 'all') {
+        pool = pool.filter(w => getWordLesson(w) === lessonVal || w.lesson === lessonVal);
+      }
+    } else {
+      if (lessonVal !== 'all') {
+        pool = pool.filter(w => w.lesson === lessonVal);
+      }
+    }
+  }
+
+  const prevSegment = segmentSelect.value;
+  const count = pool.length;
+
+  if (count === 30) {
+    // 30 words: divide by 15 words per segment
+    segmentSelect.innerHTML = `
+      <option value="all">전체 (30단어)</option>
+      <option value="1">1구간 (1 ~ 15)</option>
+      <option value="2">2구간 (16 ~ 30)</option>
+    `;
+  } else if (count === 40) {
+    // 40 words: divide by 20 words per segment
+    segmentSelect.innerHTML = `
+      <option value="all">전체 (40단어)</option>
+      <option value="1">1구간 (1 ~ 20)</option>
+      <option value="2">2구간 (21 ~ 40)</option>
+    `;
+  } else if (count === 60) {
+    // 60 words (e.g. Unit 1 with 2 lessons): 20 words per segment
+    segmentSelect.innerHTML = `
+      <option value="all">전체 (60단어)</option>
+      <option value="1">1구간 (1 ~ 20)</option>
+      <option value="2">2구간 (21 ~ 40)</option>
+      <option value="3">3구간 (41 ~ 60)</option>
+    `;
+  } else if (count > 0 && count <= 30) {
+    segmentSelect.innerHTML = `
+      <option value="all">전체 (${count}단어)</option>
+      <option value="1">1구간 (1 ~ ${Math.min(15, count)})</option>
+      ${count > 15 ? `<option value="2">2구간 (16 ~ ${count})</option>` : ''}
+    `;
+  } else {
+    segmentSelect.innerHTML = `
+      <option value="all">전체</option>
+      <option value="1">1구간 (1 ~ 20)</option>
+      <option value="2">2구간 (21 ~ 40)</option>
+    `;
+  }
+
+  if ([...segmentSelect.options].some(opt => opt.value === prevSegment)) {
+    segmentSelect.value = prevSegment;
+  } else {
+    segmentSelect.value = 'all';
+  }
 }
 
 function updateSegmentFiltersVisibility(tabType) {
-  if (tabType === 'study') {
-    const segmentContainer = document.getElementById('study-segment-filter-container');
-    if (segmentContainer) {
-      segmentContainer.style.display = 'flex';
-    }
-  } else if (tabType === 'quiz') {
-    const segmentContainer = document.getElementById('quiz-segment-select-container');
-    if (segmentContainer) {
-      segmentContainer.style.display = 'block';
-    }
-  } else if (tabType === 'dictation') {
-    const segmentContainer = document.getElementById('dictation-segment-filter-container');
-    if (segmentContainer) {
-      segmentContainer.style.display = 'block';
-    }
-  }
+  updateSegmentFilters(tabType);
 }
 
 // --- Navigation Tab System ---

@@ -10,10 +10,17 @@ function setupDictation() {
     });
   }
 
+  const unitSelect = document.getElementById('dictation-unit-filter');
+  if (unitSelect) {
+    unitSelect.addEventListener('change', () => {
+      updateLessonFilters('dictation');
+    });
+  }
+
   const lessonSelect = document.getElementById('dictation-lesson-filter');
   if (lessonSelect) {
     lessonSelect.addEventListener('change', () => {
-      updateSegmentFiltersVisibility('dictation');
+      updateSegmentFilters('dictation');
     });
   }
 
@@ -110,25 +117,37 @@ function resetDictationState() {
 
 function startDictation() {
   const levelVal = document.getElementById('dictation-level-filter').value;
+  const unitVal = document.getElementById('dictation-unit-filter')?.value || 'all';
   const lessonVal = document.getElementById('dictation-lesson-filter').value;
   const modeVal = document.getElementById('dictation-mode-select').value;
 
   let filtered = [...words];
-  if (levelVal !== 'all') {
+  if (levelVal === 'Par C2') {
+    filtered = filtered.filter(w => w.level === 'Par C2');
+    if (unitVal !== 'all') {
+      filtered = filtered.filter(w => getWordUnit(w) === unitVal);
+    }
+    if (lessonVal !== 'all') {
+      filtered = filtered.filter(w => getWordLesson(w) === lessonVal || w.lesson === lessonVal);
+    }
+  } else if (levelVal !== 'all') {
     filtered = filtered.filter(w => w.level === levelVal);
-  }
-  if (lessonVal !== 'all') {
-    filtered = filtered.filter(w => w.lesson === lessonVal);
+    if (lessonVal !== 'all') {
+      filtered = filtered.filter(w => w.lesson === lessonVal);
+    }
   }
 
   // Ensure sorted index by ID
   filtered.sort((a, b) => a.id.localeCompare(b.id, undefined, { numeric: true, sensitivity: 'base' }));
   
+  // Apply segment slicing (단어가 30개인 경우 15개씩 분할)
   const segmentVal = document.getElementById('dictation-segment-filter').value;
-  if (segmentVal === '1') {
-    filtered = filtered.slice(0, 20);
-  } else if (segmentVal === '2') {
-    filtered = filtered.slice(20, 40);
+  if (segmentVal !== 'all') {
+    const segNum = parseInt(segmentVal, 10);
+    const segSize = filtered.length === 30 ? 15 : 20;
+    if (!isNaN(segNum) && segNum > 0) {
+      filtered = filtered.slice((segNum - 1) * segSize, segNum * segSize);
+    }
   }
 
   if (filtered.length === 0) {
