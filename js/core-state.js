@@ -3,7 +3,7 @@
  */
 
 // --- State Configurations ---
-const DB_VERSION = "2026.09.21";
+const DB_VERSION = "2026.09.21.2";
 let words = [];
 let streak = 0;
 let lastStudyDate = null;
@@ -362,7 +362,12 @@ function updateLessonFilters(tabType) {
       uniqueUnits.forEach(u => {
         unitFilterElement.innerHTML += `<option value="${u}">${u}</option>`;
       });
-      if ([...unitFilterElement.options].some(opt => opt.value === prevUnit)) {
+      if (prevUnit && prevUnit !== 'all' && [...unitFilterElement.options].some(opt => opt.value === prevUnit)) {
+        unitFilterElement.value = prevUnit;
+      } else if (uniqueUnits.length > 0 && (!prevUnit || prevUnit === 'all')) {
+        // C2 선택 시 Unit 1 기본 선택
+        unitFilterElement.value = uniqueUnits[0];
+      } else if ([...unitFilterElement.options].some(opt => opt.value === prevUnit)) {
         unitFilterElement.value = prevUnit;
       } else {
         unitFilterElement.value = 'all';
@@ -392,7 +397,12 @@ function updateLessonFilters(tabType) {
       lessonFilterElement.innerHTML += `<option value="${lsn}">${lsn}</option>`;
     });
 
-    if ([...lessonFilterElement.options].some(opt => opt.value === prevLesson)) {
+    if (prevLesson && prevLesson !== 'all' && [...lessonFilterElement.options].some(opt => opt.value === prevLesson)) {
+      lessonFilterElement.value = prevLesson;
+    } else if (uniqueLessons.length > 0 && (!prevLesson || prevLesson === 'all')) {
+      // Unit 선택 시 Lesson 1 기본 선택 (30개 단어 15개 구간 즉각 활성화)
+      lessonFilterElement.value = uniqueLessons[0];
+    } else if ([...lessonFilterElement.options].some(opt => opt.value === prevLesson)) {
       lessonFilterElement.value = prevLesson;
     } else {
       lessonFilterElement.value = 'all';
