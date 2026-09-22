@@ -3,7 +3,7 @@
  */
 
 // --- State Configurations ---
-const DB_VERSION = "2026.09.21.2";
+const DB_VERSION = "2026.09.23.1";
 let words = [];
 let streak = 0;
 let lastStudyDate = null;
@@ -216,7 +216,6 @@ function updateLevelFilters() {
   if (studyFilter) {
     const studyValue = studyFilter.value;
     studyFilter.innerHTML = `
-      <option value="due">오늘 복습할 단어만</option>
       <option value="all">전체 보관 단어</option>
     `;
     uniqueLevels.forEach(lvl => {
@@ -225,7 +224,7 @@ function updateLevelFilters() {
     if ([...studyFilter.options].some(opt => opt.value === studyValue)) {
       studyFilter.value = studyValue;
     } else {
-      studyFilter.value = 'due';
+      studyFilter.value = 'all';
     }
   }
 
