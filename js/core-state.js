@@ -3,7 +3,7 @@
  */
 
 // --- State Configurations ---
-const DB_VERSION = (typeof window !== 'undefined' && window.APP_VERSION) ? window.APP_VERSION : "2026.09.23.1";
+const DB_VERSION = "2026.09.23.1";
 let words = [];
 let streak = 0;
 let lastStudyDate = null;
@@ -65,10 +65,6 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 function setupEnvironmentBadge() {
-  const verBadge = document.getElementById('app-version-badge');
-  if (verBadge) {
-    verBadge.textContent = 'v' + DB_VERSION;
-  }
   const envBadge = document.getElementById('env-badge');
   if (envBadge) {
     const isLocal = window.location.hostname === 'localhost' || 
