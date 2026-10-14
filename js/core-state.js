@@ -3,7 +3,7 @@
  */
 
 // --- State Configurations ---
-const DB_VERSION = (typeof window !== 'undefined' && window.APP_VERSION) ? window.APP_VERSION : "2026.10.15.6";
+const DB_VERSION = (typeof window !== 'undefined' && window.APP_VERSION) ? window.APP_VERSION : "2026.10.15.7";
 let words = [];
 let streak = 0;
 let lastStudyDate = null;
