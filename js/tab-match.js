@@ -112,6 +112,22 @@ function shuffleArray(arr) {
   return copy;
 }
 
+function populateMatchLevelOptions() {
+  const matchFilter = document.getElementById('match-level-select');
+  if (!matchFilter || !Array.isArray(words)) return;
+  const uniqueLevels = Array.from(new Set(words.map(w => w.level))).filter(Boolean).sort();
+  const prevVal = matchFilter.value;
+  matchFilter.innerHTML = `<option value="all">전체 레벨</option>`;
+  uniqueLevels.forEach(lvl => {
+    matchFilter.innerHTML += `<option value="${lvl}">${lvl}</option>`;
+  });
+  if ([...matchFilter.options].some(opt => opt.value === prevVal)) {
+    matchFilter.value = prevVal;
+  } else {
+    matchFilter.value = 'all';
+  }
+}
+
 // --- Initialization & UI Binding ---
 function initMatchTab() {
   const setupCard = document.getElementById('match-setup-card');
@@ -123,8 +139,10 @@ function initMatchTab() {
   if (resultCard) resultCard.style.display = 'none';
 
   // Initialize level/lesson select boxes
-  populateLevelOptions('match');
-  updateLessonFilters('match');
+  populateMatchLevelOptions();
+  if (typeof updateLessonFilters === 'function') {
+    updateLessonFilters('match');
+  }
 
   // Mode radio card clicks
   const modeCards = document.querySelectorAll('.match-mode-card');

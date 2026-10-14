@@ -3,7 +3,7 @@
  */
 
 // --- State Configurations ---
-const DB_VERSION = (typeof window !== 'undefined' && window.APP_VERSION) ? window.APP_VERSION : "2026.10.15.4";
+const DB_VERSION = (typeof window !== 'undefined' && window.APP_VERSION) ? window.APP_VERSION : "2026.10.15.5";
 let words = [];
 let streak = 0;
 let lastStudyDate = null;
@@ -277,10 +277,26 @@ function updateLevelFilters() {
     }
   }
 
+  // Update match filter level dropdown
+  const matchFilter = document.getElementById('match-level-select');
+  if (matchFilter) {
+    const matchValue = matchFilter.value;
+    matchFilter.innerHTML = `<option value="all">전체 레벨</option>`;
+    uniqueLevels.forEach(lvl => {
+      matchFilter.innerHTML += `<option value="${lvl}">${lvl}</option>`;
+    });
+    if ([...matchFilter.options].some(opt => opt.value === matchValue)) {
+      matchFilter.value = matchValue;
+    } else {
+      matchFilter.value = 'all';
+    }
+  }
+
   // Populate dynamic lesson filters based on selected levels
   updateLessonFilters('study');
   updateLessonFilters('quiz');
   updateLessonFilters('dictation');
+  updateLessonFilters('match');
   updateLessonFilters('manage');
 }
 
