@@ -3,7 +3,7 @@
  */
 
 // --- State Configurations ---
-const DB_VERSION = (typeof window !== 'undefined' && window.APP_VERSION) ? window.APP_VERSION : "2026.09.23.2";
+const DB_VERSION = (typeof window !== 'undefined' && window.APP_VERSION) ? window.APP_VERSION : "2026.10.15.3";
 let words = [];
 let streak = 0;
 let lastStudyDate = null;
@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', () => {
   setupModals();
   updateStreakDisplay();
   setupEnvironmentBadge();
-  
+
   // Create initial Lucide icons
   if (window.lucide) {
     window.lucide.createIcons();
@@ -71,9 +71,9 @@ function setupEnvironmentBadge() {
   }
   const envBadge = document.getElementById('env-badge');
   if (envBadge) {
-    const isLocal = window.location.hostname === 'localhost' || 
-                    window.location.hostname === '127.0.0.1' || 
-                    window.location.protocol === 'file:';
+    const isLocal = window.location.hostname === 'localhost' ||
+      window.location.hostname === '127.0.0.1' ||
+      window.location.protocol === 'file:';
     if (isLocal) {
       envBadge.textContent = 'LOCAL';
       envBadge.style.display = 'inline-block';
@@ -94,7 +94,7 @@ function setupEnvironmentBadge() {
 function loadData() {
   const currentDbVersion = localStorage.getItem('lingopop_db_version');
   const storedWords = localStorage.getItem('lingopop_words');
-  
+
   if (currentDbVersion !== DB_VERSION || !storedWords) {
     console.log("새로운 데이터베이스 버전 감지: 데이터를 최신 상태로 초기화합니다.");
     words = JSON.parse(JSON.stringify(window.defaultWords)); // deep copy
@@ -112,7 +112,7 @@ function loadData() {
       } else {
         // Sync: default-words.js와 로컬스토리지를 정확하게 동기화 (새로운 단어 추가 + 빠진 단어 제거)
         let isSynced = false;
-        
+
         // 1. 없는 단어 추가
         window.defaultWords.forEach(defaultWord => {
           const exists = words.some(w => w.id === defaultWord.id);
@@ -121,7 +121,7 @@ function loadData() {
             isSynced = true;
           }
         });
-        
+
         // 2. defaultWords에 없는 기존 단어 제거 (레슨 8만 남기기)
         const initialCount = words.length;
         words = words.filter(w => window.defaultWords.some(dw => dw.id === w.id));
@@ -214,7 +214,7 @@ function resetDatabase() {
 function updateLevelFilters() {
   // Get all unique levels from words (natural ascending sort: Par C1, Par C2)
   const uniqueLevels = Array.from(new Set(words.map(w => w.level))).filter(Boolean).sort();
-  
+
   // Update study filter level dropdown
   const studyFilter = document.getElementById('study-level-filter');
   if (studyFilter) {
@@ -340,7 +340,7 @@ function updateLessonFilters(tabType) {
     if (unitFilterElement && tabType === 'manage') unitFilterElement.style.display = 'none';
     if (lessonContainer) lessonContainer.style.display = 'none';
     if (tabType === 'manage' && lessonFilterElement) lessonFilterElement.style.display = 'none';
-    
+
     updateSegmentFilters(tabType);
     return;
   }
@@ -558,10 +558,10 @@ function setupNavigation() {
   navButtons.forEach(btn => {
     btn.addEventListener('click', () => {
       const targetTab = btn.getAttribute('data-target');
-      
+
       navButtons.forEach(b => b.classList.remove('active'));
       tabs.forEach(t => t.classList.remove('active'));
-      
+
       btn.classList.add('active');
       const targetElement = document.getElementById(targetTab);
       if (targetElement) {
@@ -589,7 +589,7 @@ function setupNavigation() {
 // --- Streak System Logic ---
 function incrementStreak() {
   const today = new Date().toDateString();
-  
+
   if (lastStudyDate === today) {
     return; // Already studied today
   }
@@ -597,7 +597,7 @@ function incrementStreak() {
   if (lastStudyDate) {
     const yesterday = new Date();
     yesterday.setDate(yesterday.getDate() - 1);
-    
+
     if (new Date(lastStudyDate).toDateString() === yesterday.toDateString()) {
       streak += 1;
     } else {
