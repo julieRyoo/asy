@@ -7,6 +7,7 @@
 
 let matchGameState = {
   mode: 'colloc', // 'colloc' | 'definition' | 'synonym'
+  difficulty: 'easy', // 'easy' | 'normal'
   totalPairs: 6,
   matchedPairs: 0,
   firstCard: null,
@@ -161,6 +162,16 @@ function initMatchTab() {
         radio.checked = true;
         matchGameState.mode = radio.value;
       }
+    });
+  });
+
+  // Difficulty buttons (easy vs normal)
+  const diffBtns = document.querySelectorAll('.match-diff-btn');
+  diffBtns.forEach(btn => {
+    btn.addEventListener('click', () => {
+      diffBtns.forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      matchGameState.difficulty = btn.getAttribute('data-difficulty') || 'easy';
     });
   });
 
@@ -335,13 +346,15 @@ function startMatchGame() {
         pairId: pairId,
         text: headword,
         sub: wordObj.pos || '단어',
-        type: 'word'
+        type: 'word',
+        hint: wordObj.definition || ''
       });
       cards.push({
         pairId: pairId,
         text: companion,
         sub: '연어 짝 (Collocation)',
-        type: 'colloc'
+        type: 'colloc',
+        hint: wordObj.exampleTranslation || wordObj.definition || ''
       });
     } else if (mode === 'synonym') {
       const synText = (wordObj.synonym && wordObj.synonym.trim().length > 1) ? wordObj.synonym : wordObj.definition;
@@ -349,27 +362,31 @@ function startMatchGame() {
         pairId: pairId,
         text: wordObj.word,
         sub: wordObj.pos || '단어',
-        type: 'word'
+        type: 'word',
+        hint: wordObj.definition || ''
       });
       cards.push({
         pairId: pairId,
         text: synText,
         sub: '유의어 (Synonym)',
-        type: 'synonym'
+        type: 'synonym',
+        hint: wordObj.definition || ''
       });
     } else {
-      // Definition mode
+      // Definition mode (단어 <-> 국문뜻: 선택 시에도 별도 힌트 없음)
       cards.push({
         pairId: pairId,
         text: wordObj.word,
         sub: wordObj.pos || '단어',
-        type: 'word'
+        type: 'word',
+        hint: ''
       });
       cards.push({
         pairId: pairId,
         text: wordObj.definition,
         sub: '국문 뜻',
-        type: 'definition'
+        type: 'definition',
+        hint: ''
       });
     }
   });
@@ -386,7 +403,6 @@ function startMatchGame() {
   const grid = document.getElementById('match-grid');
   if (grid) {
     grid.innerHTML = '';
-    // Adjust grid column template based on total pairs
     grid.style.gridTemplateColumns = matchGameState.totalPairs === 6 ? 'repeat(4, 1fr)' : 'repeat(4, 1fr)';
 
     shuffledCards.forEach(cardData => {
@@ -394,9 +410,14 @@ function startMatchGame() {
       cardEl.className = 'match-card';
       cardEl.setAttribute('data-pair-id', cardData.pairId);
 
+      const hintHtml = (matchGameState.difficulty === 'easy' && cardData.hint)
+        ? `<div class="match-card-hint">💡 ${cardData.hint}</div>`
+        : '';
+
       cardEl.innerHTML = `
         <div class="match-card-text">${cardData.text}</div>
         <div class="match-card-type">${cardData.sub}</div>
+        ${hintHtml}
       `;
 
       cardEl.addEventListener('click', () => handleCardClick(cardEl, cardData));
@@ -438,6 +459,21 @@ function updateMatchHUD() {
       comboCount.textContent = matchGameState.combo;
     } else {
       comboBadge.style.display = 'none';
+    }
+  }
+
+  const diffBadge = document.getElementById('match-diff-badge');
+  if (diffBadge) {
+    if (matchGameState.difficulty === 'easy') {
+      diffBadge.textContent = '🟢 Easy';
+      diffBadge.style.background = 'rgba(16, 185, 129, 0.15)';
+      diffBadge.style.borderColor = 'rgba(16, 185, 129, 0.35)';
+      diffBadge.style.color = '#34d399';
+    } else {
+      diffBadge.textContent = '⚡ Normal';
+      diffBadge.style.background = 'rgba(99, 102, 241, 0.15)';
+      diffBadge.style.borderColor = 'rgba(99, 102, 241, 0.35)';
+      diffBadge.style.color = '#818cf8';
     }
   }
 }
@@ -541,7 +577,7 @@ function endMatchGame() {
   // Calculate & Save Best Time
   const levelVal = document.getElementById('match-level-select')?.value || 'all';
   const lessonVal = document.getElementById('match-lesson-select')?.value || 'all';
-  const storageKey = `lingopop_best_match_${matchGameState.mode}_${levelVal}_${lessonVal}_${matchGameState.totalPairs}`;
+  const storageKey = `lingopop_best_match_${matchGameState.mode}_${matchGameState.difficulty}_${levelVal}_${lessonVal}_${matchGameState.totalPairs}`;
 
   const currentSeconds = matchGameState.seconds;
   const prevBest = localStorage.getItem(storageKey);

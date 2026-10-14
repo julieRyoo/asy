@@ -13,7 +13,7 @@
     rel="stylesheet">
   <!-- App Version (Single Source of Truth) -->
   <script>
-    window.APP_VERSION = "2026.10.15.8";
+    window.APP_VERSION = "2026.10.15.9";
   </script>
   <!-- CSS Stylesheet -->
   <script>
@@ -684,6 +684,19 @@
               </div>
             </div>
 
+            <!-- Difficulty Option -->
+            <div class="form-group" style="margin-top: 16px;">
+              <label>난이도 선택</label>
+              <div style="display: flex; gap: 12px; margin-top: 6px;">
+                <button type="button" class="btn btn-outline match-diff-btn active" data-difficulty="easy" style="flex: 1; padding: 10px; font-weight: 600;">
+                  🟢 Easy (선택 시 한글 힌트)
+                </button>
+                <button type="button" class="btn btn-outline match-diff-btn" data-difficulty="normal" style="flex: 1; padding: 10px; font-weight: 600;">
+                  ⚡ Normal (기존 방식)
+                </button>
+              </div>
+            </div>
+
             <!-- Board Size Option -->
             <div class="form-group" style="margin-top: 16px;">
               <label>카드 개수</label>
@@ -715,6 +728,7 @@
                 <i data-lucide="timer" style="width: 20px; height: 20px;"></i>
                 <span id="match-timer-text">00:00</span>
               </div>
+              <span id="match-diff-badge" class="badge" style="font-size: 12px; font-weight: 700; padding: 4px 10px; border-radius: 9999px; background: rgba(16, 185, 129, 0.15); border: 1px solid rgba(16, 185, 129, 0.35); color: #34d399;">🟢 Easy</span>
             </div>
 
             <div style="display: flex; align-items: center; gap: 14px;">

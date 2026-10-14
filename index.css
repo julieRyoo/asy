@@ -2241,3 +2241,49 @@ body {
   40%, 80% { transform: translateX(8px); }
 }
 
+.match-size-btn.active,
+.match-diff-btn.active {
+  background: rgba(99, 102, 241, 0.2) !important;
+  border-color: #818cf8 !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 15px rgba(99, 102, 241, 0.3) !important;
+}
+
+.match-card-hint {
+  display: none;
+  margin-top: 8px;
+  padding: 4px 10px;
+  background: rgba(16, 185, 129, 0.22);
+  border: 1px solid rgba(16, 185, 129, 0.5);
+  border-radius: var(--radius-sm);
+  color: #34d399;
+  font-size: 13px;
+  font-weight: 700;
+  line-height: 1.25;
+  word-break: keep-all;
+  animation: hintPopIn 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+.match-card.selected .match-card-hint {
+  display: inline-block;
+}
+
+.match-card.matched .match-card-hint {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+  color: #a7f3d0;
+}
+
+@keyframes hintPopIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+
