@@ -19,9 +19,9 @@
 - 정답 시 상위 박스로 승급, 오답 시 즉시 Box 1로 강등되어 취약 단어를 집중 공략합니다.
 - 복습 주기 도달 단어 자동 알림 및 일일 학습 스트릭(Streak) 추적.
 
-### 2. 📚 청담어학원 정규 교재 어휘 720개 기본 탑재
-- **Par C1**: Lesson 01 ~ Lesson 12 (단원당 40단어, 총 480단어)
-- **Par C2**: Unit 1 ~ Unit 4 (단원당 60단어, 총 240단어)
+### 2. 📚 테마별 필수 아카데믹 어휘 720개 기본 탑재
+- **Level C1**: Lesson 01 ~ Lesson 12 (단원당 40단어, 총 480단어)
+- **Level C2**: Unit 1 ~ Unit 4 (단원당 60단어, 총 240단어)
 - **어휘 정보**: 표제어, 품사, 국문 뜻, 영문 정의, 콜로케이션(연어) 예문, 예문 해석, 빈칸(Cloze), 유의어 완벽 수록.
 
 ### 3. 🎯 4가지 인터랙티브 학습 모드
@@ -49,7 +49,7 @@
 | **Design** | Modern Glassmorphism & Dark UI | HSL 기반 다이내믹 컬러 토큰 및 부드러운 반응형 레이아웃 |
 | **Speech** | Web Speech API | 브라우저 내장 네이티브 영어 TTS 엔진 |
 | **Icons & Effects** | Lucide Icons, Canvas Confetti | 가볍고 미려한 벡터 아이콘 및 목표 달성 축하 애니메이션 |
-| **Data Extraction** | macOS Apple Vision OCR (Swift) | 교재 PDF 고해상도 바운딩 박스 텍스트 추출 자동화 파이프라인 |
+| **Data Extraction** | macOS Apple Vision OCR (Swift) | 어휘 데이터 디지털화 및 텍스트 추출 파이프라인 |
 | **Deployment** | GitHub Pages & GitHub Actions | 무중단 자동 정적 웹 호스팅 |
 
 ---
@@ -60,7 +60,7 @@
 lingopop/
 ├── index.html          # 메인 UI 레이아웃 및 탭 구조
 ├── index.css           # 글로벌 테마, 반응형 그리드, 모던 글래스모피즘 스타일
-├── default-words.js    # Par C1, Par C2 720단어 마스터 데이터베이스
+├── default-words.js    # Level C1, C2 720단어 마스터 데이터베이스
 ├── js/
 │   ├── core-state.js      # 라이트너 상태 엔진, LocalStorage 동기화, 사용자 관리
 │   ├── tab-study.js       # 플래시카드 렌더링, TTS, 난이도별 박스 이동 로직
