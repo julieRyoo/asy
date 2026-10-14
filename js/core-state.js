@@ -3,7 +3,7 @@
  */
 
 // --- State Configurations ---
-const DB_VERSION = (typeof window !== 'undefined' && window.APP_VERSION) ? window.APP_VERSION : "2026.10.15.3";
+const DB_VERSION = (typeof window !== 'undefined' && window.APP_VERSION) ? window.APP_VERSION : "2026.10.15.4";
 let words = [];
 let streak = 0;
 let lastStudyDate = null;
@@ -324,6 +324,12 @@ function updateLessonFilters(tabType) {
     unitContainer = document.getElementById('dictation-unit-filter-container');
     lessonFilterElement = document.getElementById('dictation-lesson-filter');
     lessonContainer = document.getElementById('dictation-lesson-filter-container');
+  } else if (tabType === 'match') {
+    levelVal = document.getElementById('match-level-select')?.value || 'all';
+    unitFilterElement = document.getElementById('match-unit-select');
+    unitContainer = document.getElementById('match-unit-select-container');
+    lessonFilterElement = document.getElementById('match-lesson-select');
+    lessonContainer = document.getElementById('match-lesson-select-container');
   } else if (tabType === 'manage') {
     levelVal = document.getElementById('manage-level-filter').value;
     unitFilterElement = document.getElementById('manage-unit-filter');
@@ -471,6 +477,13 @@ function updateSegmentFilters(tabType) {
     lessonVal = document.getElementById('dictation-lesson-filter').value;
     segmentSelect = document.getElementById('dictation-segment-filter');
     segmentContainer = document.getElementById('dictation-segment-filter-container');
+  } else if (tabType === 'match') {
+    levelVal = document.getElementById('match-level-select')?.value || 'all';
+    const unitEl = document.getElementById('match-unit-select');
+    unitVal = unitEl ? unitEl.value : 'all';
+    lessonVal = document.getElementById('match-lesson-select')?.value || 'all';
+    segmentSelect = document.getElementById('match-segment-select');
+    segmentContainer = document.getElementById('match-segment-select-container');
   }
 
   if (segmentContainer) {
@@ -579,6 +592,10 @@ function setupNavigation() {
         resetQuizState(); // 리프레시: 진행중이던 퀴즈를 리셋하고 설정창으로 돌아감
       } else if (targetTab === 'dictation-tab') {
         resetDictationState(); // 리프레시: 진행중이던 받아쓰기를 리셋하고 설정창으로 돌아감
+      } else if (targetTab === 'match-tab') {
+        if (typeof initMatchTab === 'function') {
+          initMatchTab();
+        }
       } else if (targetTab === 'manage-tab') {
         renderManageTable();
       }

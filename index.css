@@ -2119,3 +2119,125 @@ body {
   40%, 80% { transform: translateX(7px); }
 }
 
+/* ==========================================================================
+   Match Game (Collocation & Word Pair Challenge) Styles
+   ========================================================================== */
+
+.match-game-wrapper {
+  max-width: 880px;
+  margin: 0 auto;
+  width: 100%;
+}
+
+.match-grid-container {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 14px;
+  margin-top: 10px;
+}
+
+@media (max-width: 768px) {
+  .match-grid-container {
+    grid-template-columns: repeat(3, 1fr);
+    gap: 10px;
+  }
+}
+
+@media (max-width: 480px) {
+  .match-grid-container {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+}
+
+.match-card {
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  min-height: 100px;
+  padding: 16px 12px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+  cursor: pointer;
+  user-select: none;
+  position: relative;
+  transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.2);
+}
+
+.match-card:hover:not(.matched):not(.selected) {
+  transform: translateY(-4px);
+  border-color: rgba(168, 85, 247, 0.45);
+  box-shadow: 0 10px 24px rgba(168, 85, 247, 0.25);
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.match-card:active:not(.matched) {
+  transform: scale(0.97);
+}
+
+.match-card.selected {
+  border: 2px solid #a855f7 !important;
+  background: rgba(168, 85, 247, 0.22) !important;
+  box-shadow: 0 0 25px rgba(168, 85, 247, 0.5) !important;
+  transform: scale(1.02);
+}
+
+.match-card.matched {
+  animation: matchSuccessFade 0.55s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+  pointer-events: none;
+}
+
+.match-card.shake {
+  animation: matchCardShake 0.45s ease-in-out;
+  border-color: #ef4444 !important;
+  background: rgba(239, 68, 68, 0.2) !important;
+  color: #fca5a5 !important;
+}
+
+.match-card-text {
+  font-size: 16px;
+  font-weight: 700;
+  line-height: 1.35;
+  color: #ffffff;
+  word-break: keep-all;
+}
+
+.match-card-type {
+  font-size: 11px;
+  color: var(--text-muted);
+  margin-top: 6px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+@keyframes matchSuccessFade {
+  0% {
+    transform: scale(1);
+    opacity: 1;
+    border-color: #10b981;
+    background: rgba(16, 185, 129, 0.3);
+  }
+  50% {
+    transform: scale(1.06);
+    opacity: 0.8;
+    border-color: #10b981;
+    box-shadow: 0 0 30px rgba(16, 185, 129, 0.6);
+  }
+  100% {
+    transform: scale(0.85);
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@keyframes matchCardShake {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
+

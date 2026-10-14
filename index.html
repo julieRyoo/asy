@@ -13,7 +13,7 @@
     rel="stylesheet">
   <!-- App Version (Single Source of Truth) -->
   <script>
-    window.APP_VERSION = "2026.10.15.3";
+    window.APP_VERSION = "2026.10.15.4";
   </script>
   <!-- CSS Stylesheet -->
   <script>
@@ -52,6 +52,10 @@
         <button class="nav-btn" data-target="quiz-tab">
           <i data-lucide="award"></i>
           <span>단어 퀴즈</span>
+        </button>
+        <button class="nav-btn" data-target="match-tab" id="nav-match-btn">
+          <i data-lucide="gamepad-2"></i>
+          <span>짝맞추기 게임</span>
         </button>
         <button class="nav-btn" data-target="dictation-tab" id="nav-dictation-btn">
           <i data-lucide="pen-tool"></i>
@@ -615,6 +619,152 @@
         </div>
       </section>
 
+      <!-- TAB: Collocation & Word Match Game -->
+      <section id="match-tab" class="tab-content">
+        <!-- 1. Match Setup State -->
+        <div id="match-setup-card" class="quiz-setup-card">
+          <div class="setup-header">
+            <div class="setup-icon-glow" style="background: rgba(168, 85, 247, 0.15); border-color: rgba(168, 85, 247, 0.35); color: #c084fc;">
+              <i data-lucide="gamepad-2" style="width: 32px; height: 32px;"></i>
+            </div>
+            <h2>짝맞추기 스피드 챌린지</h2>
+            <p>짝이 되는 어휘 카드를 최대한 빠르게 터치하여 연결하세요!</p>
+          </div>
+
+          <div class="setup-controls" style="margin-top: 28px;">
+            <!-- Mode Selection Cards -->
+            <div class="form-group">
+              <label>매칭 모드 선택</label>
+              <div class="mode-select-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; margin-top: 8px;">
+                <label class="mode-card match-mode-card active" data-match-mode="colloc" style="padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--accent-primary); background: rgba(99, 102, 241, 0.1); cursor: pointer; text-align: center; transition: all 0.2s;">
+                  <input type="radio" name="match-mode" value="colloc" checked style="display: none;">
+                  <div style="font-weight: 700; font-size: 15px; color: #fff; margin-bottom: 4px;">🤝 연어(Collocation) 짝</div>
+                  <div style="font-size: 12px; color: var(--text-secondary);">예: alternative ↔ energy</div>
+                </label>
+                <label class="mode-card match-mode-card" data-match-mode="definition" style="padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--glass-border); background: rgba(255, 255, 255, 0.02); cursor: pointer; text-align: center; transition: all 0.2s;">
+                  <input type="radio" name="match-mode" value="definition" style="display: none;">
+                  <div style="font-weight: 700; font-size: 15px; color: #fff; margin-bottom: 4px;">📖 단어 ↔ 국문 뜻</div>
+                  <div style="font-size: 12px; color: var(--text-secondary);">예: essential ↔ 필수적인</div>
+                </label>
+                <label class="mode-card match-mode-card" data-match-mode="synonym" style="padding: 16px; border-radius: var(--radius-md); border: 1px solid var(--glass-border); background: rgba(255, 255, 255, 0.02); cursor: pointer; text-align: center; transition: all 0.2s;">
+                  <input type="radio" name="match-mode" value="synonym" style="display: none;">
+                  <div style="font-weight: 700; font-size: 15px; color: #fff; margin-bottom: 4px;">🔀 단어 ↔ 유의어(Synonym)</div>
+                  <div style="font-size: 12px; color: var(--text-secondary);">예: mend ↔ fix</div>
+                </label>
+              </div>
+            </div>
+
+            <!-- Level / Lesson Selectors -->
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 16px; margin-top: 16px;">
+              <div class="form-group">
+                <label for="match-level-select">학습 레벨</label>
+                <select id="match-level-select" class="select-input" style="width: 100%;">
+                  <!-- Populated dynamically -->
+                </select>
+              </div>
+              <div class="form-group" id="match-unit-select-container" style="display: none;">
+                <label for="match-unit-select">유닛(Unit)</label>
+                <select id="match-unit-select" class="select-input" style="width: 100%;">
+                  <!-- Populated dynamically -->
+                </select>
+              </div>
+              <div class="form-group" id="match-lesson-select-container">
+                <label for="match-lesson-select">단원(Lesson)</label>
+                <select id="match-lesson-select" class="select-input" style="width: 100%;">
+                  <!-- Populated dynamically -->
+                </select>
+              </div>
+              <div class="form-group" id="match-segment-select-container">
+                <label for="match-segment-select">학습 구간</label>
+                <select id="match-segment-select" class="select-input" style="width: 100%;">
+                  <option value="all">전체</option>
+                  <option value="1">1구간 (1 ~ 20)</option>
+                  <option value="2">2구간 (21 ~ 40)</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Board Size Option -->
+            <div class="form-group" style="margin-top: 16px;">
+              <label>카드 개수</label>
+              <div style="display: flex; gap: 12px; margin-top: 6px;">
+                <button type="button" class="btn btn-outline match-size-btn active" data-pairs="6" style="flex: 1; padding: 10px; font-weight: 600;">12장 (6쌍 / 스피드)</button>
+                <button type="button" class="btn btn-outline match-size-btn" data-pairs="8" style="flex: 1; padding: 10px; font-weight: 600;">16장 (8쌍 / 표준)</button>
+              </div>
+            </div>
+
+            <div style="margin-top: 28px;">
+              <button class="btn btn-primary btn-lg" id="match-start-btn" style="width: 100%; padding: 16px; font-size: 17px; font-weight: 700; background: linear-gradient(135deg, #a855f7 0%, #6366f1 100%); border: none;">
+                <i data-lucide="play" style="width: 20px; height: 20px;"></i>
+                <span>챌린지 시작하기</span>
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2. Match Active Game Board State -->
+        <div id="match-game-card" class="match-game-wrapper" style="display: none;">
+          <!-- Top Game HUD -->
+          <div class="match-hud" style="display: flex; justify-content: space-between; align-items: center; padding: 14px 20px; background: rgba(255, 255, 255, 0.03); border: 1px solid var(--glass-border); border-radius: var(--radius-lg); backdrop-filter: blur(12px); margin-bottom: 20px;">
+            <div style="display: flex; align-items: center; gap: 12px;">
+              <button class="btn btn-outline btn-sm" id="match-quit-btn" style="padding: 6px 12px; font-size: 13px;">
+                <i data-lucide="arrow-left" style="width: 15px; height: 15px;"></i>
+                <span>나가기</span>
+              </button>
+              <div style="display: flex; align-items: center; gap: 6px; font-weight: 700; font-size: 18px; color: #60a5fa;">
+                <i data-lucide="timer" style="width: 20px; height: 20px;"></i>
+                <span id="match-timer-text">00:00</span>
+              </div>
+            </div>
+
+            <div style="display: flex; align-items: center; gap: 14px;">
+              <div id="match-combo-badge" class="badge" style="background: rgba(245, 158, 11, 0.15); border: 1px solid rgba(245, 158, 11, 0.35); color: #f59e0b; font-size: 13px; font-weight: 700; padding: 6px 12px; display: none;">
+                🔥 <span id="match-combo-count">0</span> COMBO
+              </div>
+              <div style="font-weight: 600; font-size: 15px; color: var(--text-secondary);">
+                매칭: <span id="match-pairs-count" style="color: #fff; font-weight: 700;">0</span> / <span id="match-total-pairs">8</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cards Grid -->
+          <div id="match-grid" class="match-grid-container">
+            <!-- Dynamically generated match cards -->
+          </div>
+        </div>
+
+        <!-- 3. Match Result State -->
+        <div id="match-result-card" class="quiz-result-card" style="display: none; text-align: center;">
+          <div class="result-header">
+            <div class="result-icon-glow" style="background: rgba(168, 85, 247, 0.15); border-color: rgba(168, 85, 247, 0.35); color: #c084fc;">
+              <i data-lucide="trophy" style="width: 36px; height: 36px;"></i>
+            </div>
+            <h2 style="font-size: 28px; font-weight: 800; margin-top: 14px;">매칭 챌린지 성공! 🎉</h2>
+            <p id="match-result-subtitle" style="color: var(--text-secondary); margin-top: 6px;">모든 짝을 완벽하게 맞추셨습니다!</p>
+          </div>
+
+          <div class="result-stats-grid" style="display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin: 28px auto; max-width: 520px;">
+            <div class="stat-box" style="padding: 16px; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: var(--radius-md);">
+              <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">클리어 시간</div>
+              <div id="result-match-time" style="font-size: 24px; font-weight: 800; color: #60a5fa;">00:25</div>
+            </div>
+            <div class="stat-box" style="padding: 16px; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: var(--radius-md);">
+              <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">최대 콤보</div>
+              <div id="result-match-combo" style="font-size: 24px; font-weight: 800; color: #f59e0b;">🔥 8</div>
+            </div>
+            <div class="stat-box" style="padding: 16px; background: rgba(255,255,255,0.02); border: 1px solid var(--glass-border); border-radius: var(--radius-md);">
+              <div style="font-size: 12px; color: var(--text-muted); margin-bottom: 4px;">최고 기록 (Best)</div>
+              <div id="result-match-best" style="font-size: 24px; font-weight: 800; color: #10b981;">00:25</div>
+            </div>
+          </div>
+
+          <div class="result-actions" style="margin-top: 30px; display: flex; gap: 16px; justify-content: center; max-width: 440px; margin-left: auto; margin-right: auto;">
+            <button class="btn btn-primary btn-lg" id="match-replay-btn" style="flex: 1; padding: 14px;">다시 플레이</button>
+            <button class="btn btn-outline btn-lg" id="match-home-btn" style="flex: 1; padding: 14px;">단원 변경</button>
+          </div>
+        </div>
+      </section>
+
       <!-- TAB 4: Manage Word List -->
       <section id="manage-tab" class="tab-content">
         <div class="manage-header-row">
@@ -873,6 +1023,7 @@
       "js/tab-dashboard.js",
       "js/tab-study.js",
       "js/tab-quiz.js",
+      "js/tab-match.js",
       "js/tab-dictation.js",
       "js/tab-manage.js"
     ].forEach(function (src) {

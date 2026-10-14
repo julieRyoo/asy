@@ -1,12 +1,12 @@
 # 🌟 LingoPop — Leitner Spaced Repetition English Vocabulary
 
 [![GitHub Pages](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-brightgreen?style=flat-square&logo=github)](https://julieryoo.github.io/asy/)
-[![Version](https://img.shields.io/badge/version-v2026.10.15.3-blue?style=flat-square)](https://julieryoo.github.io/asy/)
+[![Version](https://img.shields.io/badge/version-v2026.10.15.4-blue?style=flat-square)](https://julieryoo.github.io/asy/)
 [![Tech Stack](https://img.shields.io/badge/Vanilla-HTML%20%7C%20CSS%20%7C%20JS-orange?style=flat-square)](https://julieryoo.github.io/asy/)
 [![Vocabulary DB](https://img.shields.io/badge/Vocabulary-Master%20Database-purple?style=flat-square)](https://julieryoo.github.io/asy/)
 
 > **LingoPop**은 독일의 심리학자 세바스찬 라이트너(Sebastian Leitner)의 **간격 반복 시스템(Leitner Spaced Repetition)**을 기반으로 한 반응형 영어 어휘 학습 웹 애플리케이션입니다.  
-> 체계적인 5단계 복습 알고리즘, 실시간 발음 TTS, 다양한 퀴즈 및 받아쓰기 기능을 통해 단기 기억을 장기 기억으로 완벽히 전환합니다.
+> 체계적인 5단계 복습 알고리즘, 실시간 발음 TTS, 스피드 짝맞추기 게임, 퀴즈 및 받아쓰기 기능을 통해 단기 기억을 장기 기억으로 완벽히 전환합니다.
 
 🌐 **웹 서비스 바로가기**: [https://julieryoo.github.io/asy/](https://julieryoo.github.io/asy/)
 
@@ -23,7 +23,10 @@
 - **지속 확장형 어휘 코퍼스**: 테마별·난이도별 단어들이 지속적으로 업데이트 및 누적 관리됩니다.
 - **풍부한 어휘 메타데이터**: 표제어, 품사, 국문 뜻, 영문 정의, 콜로케이션(연어) 예문, 예문 해석, 빈칸(Cloze) 퀴즈, 유의어 완벽 수록.
 
-### 3. 🎯 4가지 인터랙티브 학습 모드
+### 3. 🎯 5가지 인터랙티브 학습 모드
+- **🎮 짝맞추기 스피드 챌린지 (Match Challenge) [NEW]**:
+  - 연어(Collocation) 짝, 단어↔뜻, 단어↔유의어 3가지 모드 지원.
+  - 실시간 스톱워치 타이머, 연속 정답 콤보(🔥 Combo) 및 최고 기록(Best Time) 저장.
 - **플래시카드 학습 (Flashcard Study)**: 
   - 카드 뒤집기 인터랙션, Web Speech API 고음질 원어민 발음 TTS 지원.
 - **4지선다 객관식 & 스펠링 퀴즈 (Quiz Mode)**:
@@ -64,6 +67,7 @@ lingopop/
 │   ├── core-state.js      # 라이트너 상태 엔진, LocalStorage 동기화, 사용자 관리
 │   ├── tab-study.js       # 플래시카드 렌더링, TTS, 난이도별 박스 이동 로직
 │   ├── tab-quiz.js        # 4지선다 객관식 및 스펠링 퀴즈 세션 관리
+│   ├── tab-match.js       # 연어 & 단어 짝맞추기 스피드 챌린지 모듈
 │   ├── tab-dictation.js   # 받아쓰기(Dictation) 훈련 모듈
 │   ├── tab-dashboard.js   # 통계 지표, 차트 렌더링, 스트릭 카운터
 │   └── tab-manage.js      # 단어 검색, 필터링, 사용자 단어 추가/수정
