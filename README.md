@@ -3,7 +3,7 @@
 [![GitHub Pages](https://img.shields.io/badge/Live%20Demo-GitHub%20Pages-brightgreen?style=flat-square&logo=github)](https://julieryoo.github.io/asy/)
 [![Version](https://img.shields.io/badge/version-v2026.10.15.3-blue?style=flat-square)](https://julieryoo.github.io/asy/)
 [![Tech Stack](https://img.shields.io/badge/Vanilla-HTML%20%7C%20CSS%20%7C%20JS-orange?style=flat-square)](https://julieryoo.github.io/asy/)
-[![Vocabulary DB](https://img.shields.io/badge/Vocabulary-720%20Words-purple?style=flat-square)](https://julieryoo.github.io/asy/)
+[![Vocabulary DB](https://img.shields.io/badge/Vocabulary-Master%20Database-purple?style=flat-square)](https://julieryoo.github.io/asy/)
 
 > **LingoPop**은 독일의 심리학자 세바스찬 라이트너(Sebastian Leitner)의 **간격 반복 시스템(Leitner Spaced Repetition)**을 기반으로 한 반응형 영어 어휘 학습 웹 애플리케이션입니다.  
 > 체계적인 5단계 복습 알고리즘, 실시간 발음 TTS, 다양한 퀴즈 및 받아쓰기 기능을 통해 단기 기억을 장기 기억으로 완벽히 전환합니다.
@@ -19,10 +19,9 @@
 - 정답 시 상위 박스로 승급, 오답 시 즉시 Box 1로 강등되어 취약 단어를 집중 공략합니다.
 - 복습 주기 도달 단어 자동 알림 및 일일 학습 스트릭(Streak) 추적.
 
-### 2. 📚 테마별 필수 아카데믹 어휘 720개 기본 탑재
-- **Level C1**: Lesson 01 ~ Lesson 12 (단원당 40단어, 총 480단어)
-- **Level C2**: Unit 1 ~ Unit 4 (단원당 60단어, 총 240단어)
-- **어휘 정보**: 표제어, 품사, 국문 뜻, 영문 정의, 콜로케이션(연어) 예문, 예문 해석, 빈칸(Cloze), 유의어 완벽 수록.
+### 2. 📚 단어 마스터 데이터베이스 (Master Vocabulary DB)
+- **지속 확장형 어휘 코퍼스**: 테마별·난이도별 단어들이 지속적으로 업데이트 및 누적 관리됩니다.
+- **풍부한 어휘 메타데이터**: 표제어, 품사, 국문 뜻, 영문 정의, 콜로케이션(연어) 예문, 예문 해석, 빈칸(Cloze) 퀴즈, 유의어 완벽 수록.
 
 ### 3. 🎯 4가지 인터랙티브 학습 모드
 - **플래시카드 학습 (Flashcard Study)**: 
@@ -60,7 +59,7 @@
 lingopop/
 ├── index.html          # 메인 UI 레이아웃 및 탭 구조
 ├── index.css           # 글로벌 테마, 반응형 그리드, 모던 글래스모피즘 스타일
-├── default-words.js    # Level C1, C2 720단어 마스터 데이터베이스
+├── default-words.js    # 단어 마스터 데이터베이스 (지속 확장/업데이트)
 ├── js/
 │   ├── core-state.js      # 라이트너 상태 엔진, LocalStorage 동기화, 사용자 관리
 │   ├── tab-study.js       # 플래시카드 렌더링, TTS, 난이도별 박스 이동 로직
